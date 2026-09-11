@@ -53,6 +53,37 @@ body {
   background: #c4c4c4;
 }
 
+/* 화면 전환이 뚝뚝 끊기지 않게 — App.jsx에서 view가 바뀔 때마다 key도 바뀌어
+   이 애니메이션이 매번 새로 재생됨. */
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.page-transition {
+  animation: page-fade-in 260ms ease-out;
+}
+
+/* 성공 확인 등에서 쓰는 살짝 튀는 등장 효과 */
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.pop-in {
+  animation: pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 @layer components {
   /* 브랜드 그라데이션 — 트렌드/에너지를 상징하는 보라→핑크. 남발하지 않고
      로고·CTA·강조 텍스트·1위 배지처럼 "여기가 포인트다" 싶은 곳에만 씀. */

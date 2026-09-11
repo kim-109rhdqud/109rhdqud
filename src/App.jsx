@@ -18,22 +18,26 @@ export default function App() {
     <div className="font-sans-kr min-h-screen bg-neutral-50 text-neutral-900">
       <NavBar view={view} setView={setView} user={user} onLogout={logout} />
 
-      {view.name === "home" && <HomeView setView={setView} />}
-      {view.name === "search" && <SearchResultsView query={view.query} setView={setView} />}
-      {view.name === "detail" && (
-        <DetailView id={view.id} setView={setView} user={user} scraps={scraps} toggleScrap={toggleScrap} />
-      )}
-      {view.name === "trend" && <TrendView setView={setView} />}
-      {view.name === "dictionary" && <DictionaryView setView={setView} />}
-      {view.name === "archive" && <ArchiveView setView={setView} />}
-      {view.name === "auth" && <AuthView setView={setView} onAuth={setUser} />}
-      {view.name === "mypage" && (
-        <MyPageView user={user} scraps={scraps} recentlyViewed={recentlyViewed} setView={setView} />
-      )}
-      {view.name === "editProfile" && <EditProfileView user={user} onUpdate={setUser} setView={setView} />}
-      {view.name === "scraps" && (
-        <ScrapsView user={user} scraps={scraps} toggleScrap={toggleScrap} setView={setView} />
-      )}
+      {/* view가 바뀔 때마다 key도 바뀌어서 매번 새로 마운트되고, 그때 page-transition 애니메이션이 자동으로 재생됨.
+          화면이 뚝뚝 끊기듯 바뀌는 느낌을 없애려는 용도(그냥 CSS 애니메이션이라 라이브러리 없이 처리). */}
+      <div key={`${view.name}:${view.id ?? ""}:${view.query ?? ""}`} className="page-transition">
+        {view.name === "home" && <HomeView setView={setView} />}
+        {view.name === "search" && <SearchResultsView query={view.query} setView={setView} />}
+        {view.name === "detail" && (
+          <DetailView id={view.id} setView={setView} user={user} scraps={scraps} toggleScrap={toggleScrap} />
+        )}
+        {view.name === "trend" && <TrendView setView={setView} />}
+        {view.name === "dictionary" && <DictionaryView setView={setView} />}
+        {view.name === "archive" && <ArchiveView setView={setView} />}
+        {view.name === "auth" && <AuthView setView={setView} onAuth={setUser} />}
+        {view.name === "mypage" && (
+          <MyPageView user={user} scraps={scraps} recentlyViewed={recentlyViewed} setView={setView} />
+        )}
+        {view.name === "editProfile" && <EditProfileView user={user} onUpdate={setUser} setView={setView} />}
+        {view.name === "scraps" && (
+          <ScrapsView user={user} scraps={scraps} toggleScrap={toggleScrap} setView={setView} />
+        )}
+      </div>
 
       <footer className="border-t border-neutral-200 mt-16 py-8">
         <div className="max-w-5xl mx-auto px-5 text-xs text-neutral-400">

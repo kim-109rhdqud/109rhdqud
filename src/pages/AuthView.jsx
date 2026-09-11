@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { login, signup } from "../lib/api";
+
+const SUCCESS_DELAY_MS = 700;
 
 export function AuthView({ setView, onAuth }) {
   const [mode, setMode] = useState("login");
@@ -12,6 +15,7 @@ export function AuthView({ setView, onAuth }) {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [successUser, setSuccessUser] = useState(null);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -22,14 +26,34 @@ export function AuthView({ setView, onAuth }) {
         mode === "login"
           ? await login({ username, password })
           : await signup({ username, password, nickname, email, realName, birthDate, phone });
-      onAuth(user);
-      setView({ name: "mypage" });
+      // 로그인/가입 직후 바로 화면을 넘기지 않고, 짧게 성공했다는 걸 보여준 다음 이동함
+      // — 아무 반응 없이 페이지가 툭 바뀌는 느낌을 없애려는 용도.
+      setSuccessUser(user);
+      setTimeout(() => {
+        onAuth(user);
+        setView({ name: "mypage" });
+      }, SUCCESS_DELAY_MS);
     } catch (err) {
       setError(err.message);
-    } finally {
       setSubmitting(false);
     }
   };
+
+  if (successUser) {
+    return (
+      <div className="max-w-sm mx-auto px-5 py-24 text-center">
+        <div className="surface-card p-10">
+          <span className="pop-in inline-flex w-14 h-14 rounded-full bg-emerald-50 text-emerald-500 items-center justify-center mb-4">
+            <CheckCircle2 size={28} />
+          </span>
+          <p className="font-serif-kr text-lg text-neutral-900">
+            {successUser.nickname}님, {mode === "login" ? "반가워요" : "환영해요"}!
+          </p>
+          <p className="text-sm text-neutral-400 mt-1">잠시만 기다려줘...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-sm mx-auto px-5 py-16">
