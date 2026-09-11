@@ -27,12 +27,13 @@
 - [src/App.jsx](src/App.jsx)는 얇은 셸(shell)만 담당 — `useAppState` 훅으로 상태를 받아 NavBar와 현재 view에 맞는 페이지를 렌더링.
 - `src/data/` — `memes.js`(MEMES, CATEGORIES, memeById), `rank.js`(기간별 랭킹 계산)
 - `src/lib/storage.js` — localStorage 안전 read/write 래퍼
+- `src/lib/api.js` — 백엔드(`server/`) API 호출용 fetch 래퍼. `credentials: "include"` 필수(httpOnly 쿠키 인증). `VITE_API_URL` 환경변수로 백엔드 주소 지정(루트 `.env`, `.env.example` 참고)
 - `src/hooks/useAppState.js` — view/user/scraps/recentlyViewed 상태 + localStorage 영속화
 - `src/components/` — 여러 페이지에서 재사용되는 작은 UI 조각(Logo, NavBar, SearchBar, MemeCard, CategoryTag, MockTag, RankChange, MetricBar, Sparkline, SectionHeading, PillTabs 등)
 - `src/pages/` — 화면 단위 뷰 컴포넌트 (HomeView, SearchResultsView, DetailView, TrendView, DictionaryView, ArchiveView, AuthView, MyPageView, ScrapsView)
 - 라우팅 라이브러리 없이 `view` state 객체(`{ name: "home" | "search" | "detail" | "trend" | "dictionary" | "archive" | "auth" | "mypage" | "scraps", ...params }`)로 화면 전환. 브라우저 뒤로가기/URL 공유는 동작하지 않음.
-- 로그인/회원가입은 아직 프론트에서 실제 서버 없이 입력값으로 임시 세션(`user` state)만 생성하는 Mock(백엔드 연동 전).
-- 스크랩(찜), 최근 본 밈, 로그인 세션은 `localStorage`에 영속화됨(새로고침해도 유지). 단, 여러 브라우저/기기 간 동기화는 안 됨 — 여전히 로컬 저장일 뿐. (백엔드 연동되면 스크랩/로그인은 서버로 옮겨갈 예정, 최근 본 밈은 당분간 localStorage 유지 — [docs/BACKEND.md](docs/BACKEND.md) 참고)
+- **로그인/회원가입은 2026-09-11부터 실제 백엔드(`server/`)에 연동됨** — `src/lib/api.js`가 `/auth/*` API를 호출하고, 세션은 서버가 발급하는 httpOnly 쿠키로 관리(`useAppState`가 앱 로드 시 `GET /auth/me`로 로그인 여부 확인). 더 이상 Mock 아님.
+- 스크랩(찜)과 최근 본 밈은 아직 `localStorage`에 영속화됨(새로고침해도 유지, 기기 간 동기화는 안 됨) — 밈 데이터 자체도 아직 `src/data/memes.js` 정적 import로 읽는 중. 둘 다 백엔드 API로 옮기는 작업이 남아있음 — [docs/BACKEND.md](docs/BACKEND.md) "다음에 구현할 순서" 참고.
 - `server/` — 백엔드 API(Express). `src/index.js`(엔트리), `src/routes/`(auth/memes/scraps/submissions), `src/middleware/auth.js`(JWT 검증 + role 체크), `prisma/schema.prisma`(스키마), `prisma/seed.js`(Mock 데이터 이관). 프론트와 완전히 독립된 npm 패키지(모노레포 — 별도 레포 아님).
 
 ## 디자인 컨벤션

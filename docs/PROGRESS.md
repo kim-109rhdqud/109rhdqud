@@ -22,18 +22,19 @@
 - **백엔드 골격 구현 + 실제 DB 연동까지 전부 완료** — `server/` 신규(Express 앱, Prisma 스키마, 인증/밈/스크랩/제보 라우트, Mock 데이터 이관용 시드 스크립트). 사용자가 Neon 프로젝트 생성 후, 마이그레이션 적용 → Mock 9개 밈 시드 → signup/login/me/memes/scraps API + 에러 케이스(401/409)까지 curl로 실동작 확인 완료. 테스트 계정은 정리해둠.
 - **중요 발견 1**: `npm install`도 Prisma처럼 postinstall 스크립트 있는 패키지가 끼면 cmd.exe 스폰이 막혀서 실패할 수 있음 — `--ignore-scripts`로 설치 후 `node node_modules/prisma/build/index.js generate`처럼 직접 실행하면 우회됨.
 - **중요 발견 2(꽤 큼)**: 이 PC방 네트워크는 Postgres 기본 포트(5432)도 막아놔서 표준 TCP로는 DB 접속 자체가 불가능했음(443은 정상). `@neondatabase/serverless` + `@prisma/adapter-neon`으로 HTTP/WebSocket 접속하게 바꿔서 해결 — `prisma migrate dev`는 여전히 이 네트워크에서 안 되므로, 스키마 변경 시 `migrate diff --script`로 SQL만 뽑아서 직접 실행하는 방식을 써야 함. 둘 다 CLAUDE.md/BACKEND.md에 상세히 기록해둠.
+- **프론트 `AuthView`를 실제 API에 연결 완료** — `src/lib/api.js` 신규(fetch 래퍼), 로그인/회원가입이 진짜 `/auth/*` API를 호출하고 실패 시 에러 메시지도 화면에 뜸. 로그인 세션은 이제 localStorage가 아니라 **서버의 httpOnly 쿠키**로 관리(앱 로드 시 `/auth/me`로 확인). 이 과정에서 User 스키마에 `nickname` 컬럼이 원래 빠져있던 것(프론트 3곳에서 이미 쓰고 있었음)과 비밀번호 입력값이 아예 캡처 안 되던 버그를 발견해 같이 고침. 프론트+백엔드 동시 기동해서 회원가입→쿠키→닉네임 저장까지 end-to-end 확인 완료.
 
 ## 진행 중 / 다음에 할 일
-- **다음 세션 핵심 과제 — [docs/BACKEND.md](BACKEND.md) "다음에 구현할 순서" 4번부터**: 프론트 `AuthView`를 Mock 대신 실제 API 호출(`credentials: "include"`)로 교체하는 것부터 시작. `server/.env`의 `CLIENT_ORIGIN`을 그날 뜬 Vite 포트에 맞출 것.
-- 이어서: `/memes` 데이터 fetch를 정적 import에서 API 호출로 교체, 스크랩을 localStorage에서 서버로 이관, 에디터 제보 승인 화면, 최종 배포(Vercel/Netlify + Render + Neon).
-- 새 PC에서 세션 시작할 땐 `server/.env`가 git에 안 잡히니 `.env.example` 보고 새로 만들어야 함(Neon 연결 문자열은 Neon 대시보드에서 재확인 가능).
+- **다음 세션 핵심 과제 — [docs/BACKEND.md](BACKEND.md) "다음에 구현할 순서" 5번부터**: `/memes` API로 프론트 데이터 fetch를 정적 import에서 교체 (거의 모든 페이지가 영향받는 큰 작업이라 페이지 단위로 나눠서 진행 추천).
+- 이어서: 스크랩을 localStorage에서 서버로 이관(비로그인 스크랩 처리 방식도 같이 정할 것), 에디터 제보 승인 화면, 최종 배포(Vercel/Netlify + Render + Neon).
+- 새 PC에서 세션 시작할 땐 `server/.env`뿐 아니라 **루트 `.env`도** git에 안 잡히니 `.env.example` 보고 새로 만들어야 함(`VITE_API_URL`, 로컬이면 보통 `http://localhost:4000`).
 - STRATEGY.md에 남겨둔 작은 논리 틈(2-1의 AI 생성 소스 위계, 2-7의 타깃 불일치)은 급하지 않음 — 여유 있을 때 다듬을 것.
-- 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 백엔드 기본 골격보다 후순위.
+- 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 백엔드 연동보다 후순위.
 
 ## 알려진 한계 (일부러 미룬 것)
-- 실제 백엔드/DB 없음 — 모든 데이터가 코드에 하드코딩된 Mock
+- 밈 데이터 자체는 아직 프론트에서 `src/data/memes.js` 정적 import로 읽음 — DB엔 이관됐지만 프론트가 아직 API를 안 씀(다음 할 일 참고)
 - 라우팅 라이브러리 없음 — URL 공유, 브라우저 뒤로가기 불가
-- 스크랩/최근 본/로그인 세션은 브라우저별 localStorage에만 저장 — 기기·브라우저 간 동기화 안 됨
+- 스크랩/최근 본 밈은 여전히 브라우저별 localStorage에만 저장 — 기기·브라우저 간 동기화 안 됨(로그인 세션은 서버로 이전됨)
 
 ## 세션 마무리 체크리스트
 - [ ] 이 파일의 "진행 중 / 다음에 할 일" 업데이트

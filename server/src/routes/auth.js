@@ -7,14 +7,14 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 
 function publicUser(user) {
-  return { id: user.id, email: user.email, role: user.role };
+  return { id: user.id, email: user.email, nickname: user.nickname, role: user.role };
 }
 
 router.post("/signup", async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: "이메일과 비밀번호를 입력해줘" });
+    const { email, password, nickname } = req.body;
+    if (!email || !password || !nickname) {
+      return res.status(400).json({ error: "닉네임, 이메일, 비밀번호를 모두 입력해줘" });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: "비밀번호는 8자 이상이어야 해" });
@@ -24,7 +24,7 @@ router.post("/signup", async (req, res, next) => {
     if (existing) return res.status(409).json({ error: "이미 가입된 이메일이야" });
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({ data: { email, passwordHash } });
+    const user = await prisma.user.create({ data: { email, nickname, passwordHash } });
 
     const token = signToken({ sub: user.id });
     res.cookie("token", token, authCookieOptions);

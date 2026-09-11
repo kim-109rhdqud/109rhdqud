@@ -1,14 +1,27 @@
 import { useState } from "react";
+import { login, signup } from "../lib/api";
 
 export function AuthView({ setView, onAuth }) {
   const [mode, setMode] = useState("login");
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    onAuth({ nickname: nickname || email.split("@")[0] || "사용자", email });
-    setView({ name: "mypage" });
+    setError("");
+    setSubmitting(true);
+    try {
+      const user = mode === "login" ? await login({ email, password }) : await signup({ nickname, email, password });
+      onAuth(user);
+      setView({ name: "mypage" });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -17,7 +30,10 @@ export function AuthView({ setView, onAuth }) {
         {["login", "signup"].map((m) => (
           <button
             key={m}
-            onClick={() => setMode(m)}
+            onClick={() => {
+              setMode(m);
+              setError("");
+            }}
             className={`flex-1 text-sm py-2.5 border-b-2 ${mode === m ? "border-black text-black" : "border-transparent text-gray-400"}`}
           >
             {m === "login" ? "로그인" : "회원가입"}
@@ -43,18 +59,23 @@ export function AuthView({ setView, onAuth }) {
           className="w-full border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
         />
         <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           type="password"
-          placeholder="비밀번호"
+          placeholder="비밀번호 (8자 이상)"
           required
+          minLength={8}
           className="w-full border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
         />
-        <button type="submit" className="w-full bg-black text-white py-2.5 text-sm mt-2">
-          {mode === "login" ? "로그인" : "가입하기"}
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full bg-black text-white py-2.5 text-sm mt-2 disabled:opacity-50"
+        >
+          {submitting ? "처리 중..." : mode === "login" ? "로그인" : "가입하기"}
         </button>
       </form>
-      <p className="text-xs text-gray-400 mt-4">
-        프로토타입 버전이라 실제 인증 서버는 연결되어 있지 않아. 입력한 정보로 임시 세션만 만들어져.
-      </p>
     </div>
   );
 }

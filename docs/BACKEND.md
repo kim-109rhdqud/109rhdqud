@@ -55,20 +55,24 @@
   오버엔지니어링.
 - `verification` (+ sources, changeLog) — 오늘 만든 [VerificationBadge](../src/components/VerificationBadge.jsx)
   인증마크 구조를 테이블로 옮김.
-- `profiles` — Auth 유저 확장 테이블(role: `user` / `editor` / `admin`).
+- `users` — Auth 유저 테이블(email, **nickname**, passwordHash, role: `user`/`editor`/`admin`). `nickname`은
+  최초 스키마 초안엔 빠져있었는데, 프론트 `AuthView`/`NavBar`/`MyPageView`/`ScrapsView`가 전부
+  `user.nickname`을 참조하고 있는 걸 뒤늦게 발견해서 추가함(2026-09-11).
 - `scraps` — `user_id` + `meme_id` 조인 테이블. 기존 localStorage 스크랩을 대체.
 - `submissions` — [STRATEGY.md](STRATEGY.md) 2-6 "제보 → 에디터 승인 큐" 절충안을 위한 테이블
   (status: `pending` / `approved` / `rejected`, `reviewed_by`, `reviewed_at`).
 - `recently_viewed`는 당장 서버로 옮기지 않고 localStorage에 유지 — 기기 동기화 안 돼도 리스크가
   낮은 개인화 기능이라 스코프에서 제외.
 
-## API 엔드포인트 초안
-- `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
-- `GET /memes`(검색/필터 쿼리), `GET /memes/:id`
-- `POST /memes/:id/scrap`, `DELETE /memes/:id/scrap`, `GET /scraps`
-- `POST /submissions`(제보), `GET /submissions`(에디터 큐 조회), `PATCH /submissions/:id`(승인/반려)
-- `PATCH /memes/:id/verification`(인증마크 갱신)
-- role 체크는 JWT 검증 미들웨어 뒤에 `requireEditor` 같은 별도 미들웨어로 처리
+## API 엔드포인트 (구현 완료, 실제 코드 기준)
+- `POST /auth/signup`(nickname/email/password), `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
+- `GET /memes`(검색/필터 쿼리: `?category=`, `?q=`), `GET /memes/:id`
+- `GET /scraps`(로그인 필요), `POST /scraps/:memeId`, `DELETE /scraps/:memeId`
+- `POST /submissions`(제보), `GET /submissions`(에디터는 전체 큐, 일반 유저는 자기 것만),
+  `PATCH /submissions/:id`(승인/반려, 에디터 전용)
+- `PATCH /memes/:id/verification`(인증마크 갱신, 에디터 전용)
+- role 체크는 `requireAuth`(JWT 검증) 다음에 `requireEditor` 미들웨어를 붙이는 식으로 처리
+  (`server/src/middleware/auth.js`)
 
 ## 진행 상황 (2026-09-11)
 - **완료**: `server/` 스캐폴드(Express 골격, `src/lib`, `src/middleware`, `src/routes`), Prisma 스키마
@@ -81,6 +85,15 @@
   6개 생성 확인: users/memes/meme_ranks/verifications/scraps/submissions) → `node prisma/seed.js`로 Mock
   9개 밈 이관 완료 → 서버 기동 후 signup/login/me/memes 목록/상세/scraps 추가·조회/에러 케이스(미인증
   401, 중복 가입 409, 잘못된 비밀번호 401)까지 curl로 전부 실제 동작 확인. 테스트로 만든 계정은 삭제해둠.
+- **프론트 `AuthView` 연동 완료**: [src/lib/api.js](../src/lib/api.js) 신규(fetch 래퍼, 매 요청에
+  `credentials: "include"`). `AuthView`가 이제 실제 `/auth/signup`·`/auth/login`을 호출하고 에러 메시지를
+  화면에 보여줌(비밀번호칸도 이전엔 값이 아예 캡처 안 되던 버그가 있었음 — 같이 고침). `useAppState`는
+  localStorage 대신 앱 로드 시 `GET /auth/me`로 세션을 확인하고, 로그아웃도 서버 쿠키를 실제로 지움.
+  로컬 프론트(Vite)용 `.env.example`/`VITE_API_URL` 추가. 개발 중 Vite 포트가 계속 바뀌는 문제 때문에
+  서버 CORS를 프로덕션 외엔 `localhost:아무포트나` 허용하도록 완화(`server/src/index.js`).
+  프론트+백엔드 동시 기동 후 회원가입→쿠키 발급→닉네임 저장까지 end-to-end 확인.
+  (참고: curl 명령줄 인자로 한글을 직접 넘기면 이 Windows 콘솔 환경에서 인코딩이 깨짐 — 실제 앱 버그
+  아님. 한글 포함 요청은 JSON 파일로 `--data-binary @file.json`처럼 넘겨서 테스트할 것.)
 - **중요 발견 1**: `npm install`도 Prisma처럼 postinstall 스크립트가 있는 패키지가 끼면 cmd.exe 스폰
   차단에 걸려 `EPERM: spawn` 에러로 실패할 수 있음(CLAUDE.md에 있던 "npm install은 안전하다"는 프론트
   의존성 한정 얘기였음). `npm install --ignore-scripts`로 설치하고, `prisma generate` 같은 건
@@ -92,12 +105,14 @@
 1. ~~`server/` 디렉토리 세팅~~ 완료
 2. ~~Neon 프로젝트 생성 + `DATABASE_URL` 연결~~ 완료
 3. ~~초기 마이그레이션 적용 + Mock 데이터 시드 + API 전체 동작 확인~~ 완료
-4. **프론트 `AuthView`를 Mock 대신 실제 API 호출로 교체** — `fetch(url, { credentials: "include" })`로
-   쿠키가 오가게 할 것. 프론트 개발 서버(Vite, 5173/5175/5176 등 상황에 따라 다름)와 백엔드(4000)가
-   다른 오리진이므로 `server/.env`의 `CLIENT_ORIGIN`을 실제 뜬 포트에 맞춰줄 것.
-5. `/memes` API로 프론트 데이터 fetch를 정적 import에서 교체 (`src/data/memes.js`의 `MEMES` 직접 참조를
-   걷어내는 작업 — `memeById` 등 헬퍼를 쓰는 곳 전부 영향받음)
-6. 스크랩 API 프론트 연동 (localStorage → 서버, `useAppState` 훅 수정 필요)
+4. ~~프론트 `AuthView`를 Mock 대신 실제 API 호출로 교체~~ 완료 (아래 "진행 상황" 참고)
+5. **`/memes` API로 프론트 데이터 fetch를 정적 import에서 교체** — `src/data/memes.js`의 `MEMES`/`memeById`를
+   직접 참조하는 페이지(HomeView, SearchResultsView, DetailView, TrendView, DictionaryView, ArchiveView 등
+   대부분)가 전부 영향받는 큰 작업. 한 번에 다 바꾸기보다 페이지 단위로 하나씩 API 연동 + 로딩/에러
+   상태 추가하는 식으로 진행하는 게 나을 듯.
+6. 스크랩 API 프론트 연동 (localStorage → 서버, `useAppState` 훅 수정 필요) — 로그인 안 한 상태의
+   스크랩은 어떻게 할지도 정할 것(현재는 로그인 안 해도 로컬에 스크랩 가능한 구조라, 서버 이전 시
+   비로그인 스크랩을 막을지 게스트 스크랩을 별도로 둘지 결정 필요).
 7. role/제보 큐(`submissions`) 승인 화면 구현 — 에디터 role을 가진 계정을 어떻게 만들지도 같이 정할 것
    (당장은 DB에서 직접 role 컬럼 업데이트하는 정도로 충분, 관리 화면은 나중에)
 8. 배포: 프론트(Vercel/Netlify) + 백엔드(Render) + DB(Neon), CORS/쿠키 환경별 설정 마무리. 배포된

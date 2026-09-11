@@ -9,9 +9,18 @@ import submissionRoutes from "./routes/submissions.js";
 
 const app = express();
 
+const isProd = process.env.NODE_ENV === "production";
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
-app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
+// Vite 개발 서버는 포트가 자꾸 바뀌어서(5173이 이미 쓰이고 있으면 5174, 5175... 식으로 올라감)
+// 매번 CLIENT_ORIGIN을 맞춰줘야 하는 게 번거로움 — 개발 중엔 localhost 아무 포트나 허용.
+// 배포(프로덕션) 환경에서는 CLIENT_ORIGIN 하나만 정확히 허용함.
+app.use(
+  cors({
+    origin: isProd ? CLIENT_ORIGIN : /^http:\/\/localhost:\d+$/,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(cookieParser());
 
