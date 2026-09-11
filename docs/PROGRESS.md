@@ -18,10 +18,14 @@
 - 새 PC(PC방)에서 세션 재개: Node 신규 설치 확인 → `npm install` → CLAUDE.md에 기록된 Vite `net use`(cmd.exe 스폰 차단) 이슈 재발 확인 및 패치 재적용 → build/lint/dev 서버 재검증 완료.
 - **STRATEGY.md 2-3(인증마크의 순환 신뢰 문제) 해결 및 기획 전체 확정.** "브랜드 권위" 대신 "클릭하면 검증 가능한 근거"로 인증마크 의미를 재정의.
 - **인증마크(에디터 검증) 기능 구현.** `src/data/memes.js`에 `verification` 필드 추가(알잘딱깔센/오운완/무물 3개 `verified: true` + 출처·검수자·수정이력, 나머지 6개 `verified: false`). [src/components/VerificationBadge.jsx](../src/components/VerificationBadge.jsx) 신규 작성(목록용 배지 + 상세 페이지용 전체 섹션), `MemeCard`/`DetailView`에 연결. build/lint 재검증 완료.
-- **백엔드 아키텍처 논의 및 확정** (구현은 아직 안 함) — Node/Express + Neon(Postgres) + Prisma + httpOnly 쿠키 JWT, 모노레포(`server/` 디렉토리) 구조로 결정. 데이터 모델·API 엔드포인트 초안·구현 순서를 [docs/BACKEND.md](BACKEND.md)에 정리.
+- **백엔드 아키텍처 논의 및 확정** — Node/Express + Neon(Postgres) + Prisma + httpOnly 쿠키 JWT, 모노레포(`server/` 디렉토리) 구조로 결정. 데이터 모델·API 엔드포인트 초안·구현 순서를 [docs/BACKEND.md](BACKEND.md)에 정리.
+- **백엔드 골격 구현 완료** — `server/` 신규(Express 앱, Prisma 스키마, 인증/밈/스크랩/제보 라우트, Mock 데이터 이관용 시드 스크립트). `node src/index.js`로 기동 + `/health` 확인, lint 클린. Neon DB가 아직 없어서 실제 DB 연동 동작 확인은 못 함(placeholder `DATABASE_URL`로 서버만 뜨는 것까지 검증).
+- **중요 발견**: `npm install`도 Prisma처럼 postinstall 스크립트 있는 패키지가 끼면 cmd.exe 스폰이 막혀서 실패할 수 있음 — `--ignore-scripts`로 설치 후 `node node_modules/prisma/build/index.js generate`처럼 직접 실행하면 우회됨. CLAUDE.md/BACKEND.md에 기록해둠.
 
 ## 진행 중 / 다음에 할 일
-- **다음 세션의 핵심 과제: docs/BACKEND.md의 "다음에 구현할 순서" 1번부터 실제 구현 시작.** `server/` 디렉토리 세팅 + Neon 프로젝트 생성 + Prisma 스키마 작성부터. Prisma CLI(`npx prisma ...`)가 이 PC방 환경(cmd.exe 스폰 차단)에서 정상 동작하는지 제일 먼저 검증할 것 — 안 되면 vite/oxlint 때처럼 바이너리 직접 실행으로 우회.
+- **다음 세션 최우선 — 사용자가 직접 해야 하는 일: Neon 계정 가입 + 프로젝트 생성**, 연결 문자열을 `server/.env`의 `DATABASE_URL`에 채우기(`server/.env.example` 참고, git에 안 잡히니 이 파일 자체가 없으면 새로 만들어야 함).
+- 그 다음: `node node_modules/prisma/build/index.js migrate dev --name init` → `node prisma/seed.js`(Mock 9개 이관) → `node src/index.js`로 회원가입 등 실제 API 동작 확인.
+- 이후 순서는 [docs/BACKEND.md](BACKEND.md) "다음에 구현할 순서" 5번부터: 프론트 `AuthView`/`memes` 데이터 fetch/스크랩을 실제 API로 교체, 에디터 제보 승인 화면, 배포.
 - STRATEGY.md에 남겨둔 작은 논리 틈(2-1의 AI 생성 소스 위계, 2-7의 타깃 불일치)은 급하지 않음 — 여유 있을 때 다듬을 것.
 - 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 백엔드 기본 골격보다 후순위.
 

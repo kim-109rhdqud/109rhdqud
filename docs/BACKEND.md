@@ -49,12 +49,27 @@
 - `PATCH /memes/:id/verification`(인증마크 갱신)
 - role 체크는 JWT 검증 미들웨어 뒤에 `requireEditor` 같은 별도 미들웨어로 처리
 
+## 진행 상황 (2026-09-11)
+- **완료**: `server/` 스캐폴드(Express 골격, `src/lib`, `src/middleware`, `src/routes`), Prisma 스키마
+  작성(`prisma/schema.prisma`), 인증 API(`/auth/signup|login|logout|me`), `/memes`(목록/상세/인증마크 PATCH),
+  `/scraps`(CRUD), `/submissions`(등록/조회/승인·반려) 라우트 코드, Mock 데이터 이관용 시드 스크립트
+  (`prisma/seed.js`). `node src/index.js`로 기동 확인, `/health` 응답 확인, 에러 핸들러가 프로덕션에서
+  내부 에러 메시지를 안 새게 처리 확인.
+- **막힘/대기 중**: 아직 Neon 프로젝트가 없어서 `server/.env`의 `DATABASE_URL`이 placeholder 상태 —
+  실제 DB 연결·마이그레이션·시드·회원가입 API 동작 확인은 Neon 프로젝트 생성 후에 가능.
+- **중요 발견**: `npm install`도 Prisma처럼 postinstall 스크립트가 있는 패키지가 끼면 cmd.exe 스폰
+  차단에 걸려 `EPERM: spawn` 에러로 실패할 수 있음(CLAUDE.md에 있던 "npm install은 안전하다"는 프론트
+  의존성 한정 얘기였음). `npm install --ignore-scripts`로 설치하고, `prisma generate`/`migrate` 같은
+  건 `node node_modules/prisma/build/index.js <command>`로 직접 실행하면 우회됨 — 실제로 `generate`는
+  이 방식으로 정상 동작 확인함. 자세한 내용은 [CLAUDE.md](../CLAUDE.md)의 "PC방 컴퓨터" 항목 참고.
+
 ## 다음에 구현할 순서
-1. `server/` 디렉토리 세팅(Express 기본 골격), Neon 프로젝트 생성
-2. Prisma 스키마 작성 + 마이그레이션 (CLI 실행 방식이 이 PC방 환경에서 되는지 먼저 검증)
-3. 인증 API(회원가입/로그인/로그아웃/me) + httpOnly 쿠키 발급
-4. 프론트 `AuthView`를 Mock 대신 실제 API 호출로 교체
-5. `/memes` API 구현 + 프론트 데이터 fetch를 정적 import에서 교체
-6. 스크랩 API 구현 + 프론트 연동 (localStorage → 서버)
-7. role/제보 큐(`submissions`) 구현 — 에디터 승인 화면 필요
-8. 배포: 프론트(Vercel/Netlify) + 백엔드(Render) + DB(Neon), CORS/쿠키 환경별 설정 마무리
+1. ~~`server/` 디렉토리 세팅(Express 기본 골격)~~ 완료
+2. **Neon 프로젝트 생성 (사용자가 직접 — 계정 필요)** → `server/.env`의 `DATABASE_URL` 채우기
+3. `node node_modules/prisma/build/index.js migrate dev --name init`으로 첫 마이그레이션 적용
+4. `node prisma/seed.js`로 기존 Mock 9개 밈 이관, `node src/index.js`로 실제 API 동작(회원가입 등) 확인
+5. 프론트 `AuthView`를 Mock 대신 실제 API 호출(`fetch(..., { credentials: "include" })`)로 교체
+6. `/memes` API로 프론트 데이터 fetch를 정적 import에서 교체
+7. 스크랩 API 프론트 연동 (localStorage → 서버)
+8. role/제보 큐(`submissions`) 승인 화면 구현
+9. 배포: 프론트(Vercel/Netlify) + 백엔드(Render) + DB(Neon), CORS/쿠키 환경별 설정 마무리

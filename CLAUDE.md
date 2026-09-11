@@ -3,16 +3,22 @@
 요즘 유행하는 밈·유행어·상품·인물·챌린지를 검색하고 둘러볼 수 있는 React 웹앱. 현재는 프로토타입 단계로, 모든 데이터가 Mock Data임.
 
 ## 기술 스택
-- React 19 + Vite
-- Tailwind CSS 4 (`@tailwindcss/vite` 플러그인)
-- lucide-react (아이콘)
-- oxlint (린트, TypeScript 아님 — 순수 JSX)
+- 프론트: React 19 + Vite, Tailwind CSS 4 (`@tailwindcss/vite` 플러그인), lucide-react(아이콘), oxlint(린트, TypeScript 아님 — 순수 JSX)
+- 백엔드(`server/`, 2026-09-11 추가, 구현 진행 중): Node + Express, Prisma(ORM), Neon(PostgreSQL 호스팅), 인증은 bcryptjs + jsonwebtoken(httpOnly 쿠키). 결정 배경은 [docs/BACKEND.md](docs/BACKEND.md) 참고.
 
 ## 실행 명령어
+프론트(레포 루트에서):
 - `npm run dev` — 개발 서버
 - `npm run build` — 프로덕션 빌드
 - `npm run lint` — oxlint 실행
 - `npm run preview` — 빌드 결과 미리보기
+
+백엔드(`server/` 디렉토리에서, **npm run 대신 항상 아래처럼 직접 실행** — 이유는 아래 "PC방 컴퓨터" 항목 참고):
+- `node src/index.js` — API 서버 실행 (기본 포트 4000)
+- `node node_modules/prisma/build/index.js generate` — Prisma Client 생성
+- `node node_modules/prisma/build/index.js migrate dev` — 스키마 마이그레이션
+- `node prisma/seed.js` — 기존 Mock 데이터(`src/data/memes.js`)를 DB로 이관하는 시드 스크립트
+- 최초 실행 전 `server/.env.example`을 `server/.env`로 복사하고 값 채울 것 (git에 안 잡힘 — PC 바뀔 때마다 새로 만들어야 함)
 
 ## 현재 아키텍처
 - [src/App.jsx](src/App.jsx)는 얇은 셸(shell)만 담당 — `useAppState` 훅으로 상태를 받아 NavBar와 현재 view에 맞는 페이지를 렌더링.
@@ -22,8 +28,9 @@
 - `src/components/` — 여러 페이지에서 재사용되는 작은 UI 조각(Logo, NavBar, SearchBar, MemeCard, CategoryTag, MockTag, RankChange, MetricBar, Sparkline, SectionHeading, PillTabs 등)
 - `src/pages/` — 화면 단위 뷰 컴포넌트 (HomeView, SearchResultsView, DetailView, TrendView, DictionaryView, ArchiveView, AuthView, MyPageView, ScrapsView)
 - 라우팅 라이브러리 없이 `view` state 객체(`{ name: "home" | "search" | "detail" | "trend" | "dictionary" | "archive" | "auth" | "mypage" | "scraps", ...params }`)로 화면 전환. 브라우저 뒤로가기/URL 공유는 동작하지 않음.
-- 로그인/회원가입은 실제 서버 없이 입력값으로 임시 세션(`user` state)만 생성하는 Mock.
-- 스크랩(찜), 최근 본 밈, 로그인 세션은 `localStorage`에 영속화됨(새로고침해도 유지). 단, 여러 브라우저/기기 간 동기화는 안 됨 — 여전히 로컬 저장일 뿐.
+- 로그인/회원가입은 아직 프론트에서 실제 서버 없이 입력값으로 임시 세션(`user` state)만 생성하는 Mock(백엔드 연동 전).
+- 스크랩(찜), 최근 본 밈, 로그인 세션은 `localStorage`에 영속화됨(새로고침해도 유지). 단, 여러 브라우저/기기 간 동기화는 안 됨 — 여전히 로컬 저장일 뿐. (백엔드 연동되면 스크랩/로그인은 서버로 옮겨갈 예정, 최근 본 밈은 당분간 localStorage 유지 — [docs/BACKEND.md](docs/BACKEND.md) 참고)
+- `server/` — 백엔드 API(Express). `src/index.js`(엔트리), `src/routes/`(auth/memes/scraps/submissions), `src/middleware/auth.js`(JWT 검증 + role 체크), `prisma/schema.prisma`(스키마), `prisma/seed.js`(Mock 데이터 이관). 프론트와 완전히 독립된 npm 패키지(모노레포 — 별도 레포 아님).
 
 ## 디자인 컨벤션
 - 흑백 모노톤, 얇은 border 기반 카드 UI (그림자·둥근 모서리 거의 안 씀)
@@ -46,5 +53,6 @@
     - 개발 서버: `node node_modules/vite/bin/vite.js`
     - 빌드: `node node_modules/vite/bin/vite.js build`
     - 린트: `node_modules/oxlint/bin/oxlint` (`.bin`의 `.cmd`/`.ps1` shim이 아니라 실제 바이너리 경로)
-  - `child_process.exec`/`execSync`처럼 내부적으로 cmd.exe를 거치는 호출만 막히고, `execFile`/`spawn`으로 바이너리를 직접 실행하는 건 정상 동작함(node.exe, bash.exe, git.exe 등). `npm install` 자체는 cmd.exe를 안 거치므로 문제없이 된다.
+  - `child_process.exec`/`execSync`처럼 내부적으로 cmd.exe를 거치는 호출만 막히고, `execFile`/`spawn`으로 바이너리를 직접 실행하는 건 정상 동작함(node.exe, bash.exe, git.exe 등). `npm install` 자체는 이 프론트엔드 의존성(vite, tailwind, oxlint, lucide-react 등 — install/postinstall 스크립트 없음)에 한해서는 cmd.exe를 안 거치므로 문제없이 된다.
+  - **단, `npm install`도 무조건 안전한 건 아님(2026-09-11, `server/` 추가하면서 확인)** — 설치하려는 패키지 중 `postinstall` 등 라이프사이클 스크립트가 있는 경우(예: `prisma`), npm이 그 스크립트를 실행하려고 내부적으로 cmd.exe를 스폰하면서 똑같이 막힘 → `npm error errno: -4048, code: 'EPERM', syscall: 'spawn'`로 설치 자체가 실패한다. 대응: `npm install --ignore-scripts`로 라이프사이클 스크립트를 건너뛰고 설치한 뒤, 필요한 스크립트(예: `prisma generate`)는 `node node_modules/prisma/build/index.js generate`처럼 실제 바이너리를 직접 호출해서 수동으로 실행할 것. `npx <cli>`도 내부적으로 같은 방식이라 막힐 수 있으니 `npx` 대신 항상 `node node_modules/<pkg>/<entry>` 직접 호출 패턴을 우선 시도할 것.
   - Vite 8.2.2는 추가로 Windows 설정 로딩 시 내부적으로 `exec("net use")`를 호출(`node_modules/vite/dist/node/chunks/node.js`의 `optimizeSafeRealPathSync`)하는데 이것도 cmd.exe라서 막힌다. 그 `exec(...)` 호출을 `try { ... } catch { safeRealpathSync = fs.realpathSync.native; }`로 감싸면 우회되지만(네트워크 드라이브 판별만 건너뜀, 로컬 드라이브엔 영향 없음), `node_modules`는 git에 안 잡히므로 `npm install`을 다시 하면 사라지는 임시 조치임 — 필요할 때마다 다시 적용.
