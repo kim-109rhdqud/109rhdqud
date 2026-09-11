@@ -4,6 +4,7 @@ import { MemeCard } from "../components/MemeCard";
 import { MetricBar } from "../components/MetricBar";
 import { Sparkline } from "../components/Sparkline";
 import { SectionHeading } from "../components/SectionHeading";
+import { VerificationBadge, VerificationSection } from "../components/VerificationBadge";
 import { CATEGORIES, memeById } from "../data/memes";
 
 export function DetailView({ id, setView, user, scraps, toggleScrap }) {
@@ -19,10 +20,11 @@ export function DetailView({ id, setView, user, scraps, toggleScrap }) {
 
   return (
     <div className="max-w-3xl mx-auto px-5 py-10">
-      <div className="flex flex-wrap gap-1 mb-3">
+      <div className="flex flex-wrap items-center gap-1 mb-3">
         {meme.categories.map((c) => (
           <CategoryTag key={c}>{c}</CategoryTag>
         ))}
+        <VerificationBadge verification={meme.verification} />
       </div>
       <div className="flex items-start justify-between gap-4 mb-2">
         <h1 className="font-serif-kr text-3xl md:text-4xl">{meme.name}</h1>
@@ -71,6 +73,9 @@ export function DetailView({ id, setView, user, scraps, toggleScrap }) {
           <p className="text-sm text-black">{meme.oneLineSummary}</p>
         </div>
       </div>
+
+      {/* 에디터 인증 */}
+      <VerificationSection verification={meme.verification} />
 
       {/* 유래와 확산 과정 */}
       <section className="mb-12">

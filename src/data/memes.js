@@ -37,6 +37,7 @@ export const MEMES = [
       daily: { r: 1, ch: 3 }, weekly: { r: 1, ch: 1 }, monthly: { r: 1, ch: 2 }, yearly: { r: 2, ch: 0 },
     },
     registeredAt: "2025-02-20",
+    verification: { verified: false },
   },
   {
     id: "yareu",
@@ -62,6 +63,7 @@ export const MEMES = [
     ],
     rank: { daily: { r: 2, ch: null, isNew: true }, weekly: { r: 3, ch: -1 }, monthly: { r: 4, ch: 1 }, yearly: { r: 5, ch: 2 } },
     registeredAt: "2025-03-10",
+    verification: { verified: false },
   },
   {
     id: "kingbatne",
@@ -85,6 +87,7 @@ export const MEMES = [
     ],
     rank: { daily: { r: 3, ch: -1 }, weekly: { r: 2, ch: 2 }, monthly: { r: 2, ch: 0 }, yearly: { r: 1, ch: 0 } },
     registeredAt: "2024-11-15",
+    verification: { verified: false },
   },
   {
     id: "aljaldakkkalsen",
@@ -108,6 +111,17 @@ export const MEMES = [
     ],
     rank: { daily: { r: 4, ch: 0 }, weekly: { r: 4, ch: 0 }, monthly: { r: 5, ch: -1 }, yearly: { r: 3, ch: -1 } },
     registeredAt: "2023-09-05",
+    verification: {
+      verified: true,
+      sources: [
+        "최초 출처: 커뮤니티 게시글 제목 (2023.09, OO갤러리)",
+        "확산 뒷받침: 일상 표현으로의 정착을 다룬 신조어 소개 기사 (2024.02)",
+      ],
+      copyrightHolder: null,
+      reviewedBy: "에디터 서연",
+      reviewedAt: "2025-06-02",
+      changeLog: [{ date: "2025-06-02", editor: "에디터 서연", note: "최초 검수 및 인증마크 부여" }],
+    },
   },
   {
     id: "owunwan",
@@ -128,6 +142,17 @@ export const MEMES = [
     timeline: [{ date: "2022.06", text: "피트니스 인플루언서들 사이에서 해시태그로 시작" }],
     rank: { daily: { r: 5, ch: 2 }, weekly: { r: 5, ch: null, isNew: true }, monthly: { r: 6, ch: 1 }, yearly: { r: 4, ch: 1 } },
     registeredAt: "2022-06-01",
+    verification: {
+      verified: true,
+      sources: [
+        "최초 출처: 피트니스 인플루언서 게시물 (2022.06)",
+        "확산 뒷받침: SNS 해시태그 사용량 집계 조사 (2023.01)",
+      ],
+      copyrightHolder: null,
+      reviewedBy: "에디터 하람",
+      reviewedAt: "2025-06-10",
+      changeLog: [{ date: "2025-06-10", editor: "에디터 하람", note: "최초 검수 및 인증마크 부여" }],
+    },
   },
   {
     id: "mumul",
@@ -148,6 +173,17 @@ export const MEMES = [
     timeline: [{ date: "2021.01", text: "인스타그램 스토리 질문 기능과 함께 용어로 정착" }],
     rank: { daily: { r: 6, ch: -2 }, weekly: { r: 6, ch: -2 }, monthly: { r: 7, ch: -1 }, yearly: { r: 6, ch: -1 } },
     registeredAt: "2021-01-10",
+    verification: {
+      verified: true,
+      sources: [
+        "최초 출처: 인스타그램 스토리 질문 기능 도입 공지 (2021.01)",
+        "확산 뒷받침: 소통형 콘텐츠 형식을 다룬 신조어 소개 기사 (2021.05)",
+      ],
+      copyrightHolder: null,
+      reviewedBy: "에디터 민준",
+      reviewedAt: "2025-06-15",
+      changeLog: [{ date: "2025-06-15", editor: "에디터 민준", note: "최초 검수 및 인증마크 부여" }],
+    },
   },
   {
     id: "dangdangi-challenge",
@@ -168,6 +204,7 @@ export const MEMES = [
     timeline: [{ date: "2025.05", text: "개인 계정에서 시작해 해시태그 챌린지로 확산" }],
     rank: { daily: { r: 7, ch: null, isNew: true }, weekly: { r: 7, ch: 1 }, monthly: { r: 8, ch: 2 }, yearly: { r: 8, ch: null, isNew: true } },
     registeredAt: "2025-05-18",
+    verification: { verified: false },
   },
   {
     id: "moodeungtumbler",
@@ -188,6 +225,7 @@ export const MEMES = [
     timeline: [{ date: "2025.04", text: "리뷰 콘텐츠를 통해 상품명이 알려지기 시작" }],
     rank: { daily: { r: 8, ch: -1 }, weekly: { r: 8, ch: -1 }, monthly: { r: 9, ch: -2 }, yearly: { r: 7, ch: -2 } },
     registeredAt: "2025-04-22",
+    verification: { verified: false },
   },
   {
     id: "ddukiya",
@@ -208,6 +246,7 @@ export const MEMES = [
     timeline: [{ date: "2025.01", text: "단편 애니메이션 클립에서 캐릭터 등장" }, { date: "2025.02", text: "리액션 짤로 재가공되며 확산" }],
     rank: { daily: { r: 9, ch: 0 }, weekly: { r: 9, ch: null, isNew: true }, monthly: { r: 10, ch: null, isNew: true }, yearly: { r: 9, ch: null, isNew: true } },
     registeredAt: "2025-01-25",
+    verification: { verified: false },
   },
 ];
 
