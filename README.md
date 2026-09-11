@@ -1,16 +1,20 @@
-# React + Vite
+# 유행도감 (Trend Encyclopedia)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+요즘 유행하는 밈·유행어·상품·인물·챌린지를 검색하고 둘러볼 수 있는 웹 서비스. 기획 배경과 개발 관련 상세 내용은 [CLAUDE.md](CLAUDE.md)와 [docs/](docs/) 폴더를 참고.
 
-Currently, two official plugins are available:
+## 기술 스택
+- 프론트: React 19 + Vite, Tailwind CSS 4
+- 백엔드(`server/`): Node + Express, Prisma, Neon(PostgreSQL)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 시작하기
+```bash
+npm install
+npm run dev
+```
+백엔드 실행 방법 등 자세한 개발 가이드는 [CLAUDE.md](CLAUDE.md) 참고.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## 문서
+- [docs/SPEC.md](docs/SPEC.md) — 원본 기획서
+- [docs/STRATEGY.md](docs/STRATEGY.md) — 기획 피드백 토론 기록
+- [docs/BACKEND.md](docs/BACKEND.md) — 백엔드 아키텍처 결정
+- [docs/PROGRESS.md](docs/PROGRESS.md) — 진행 상황

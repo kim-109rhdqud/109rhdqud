@@ -32,19 +32,19 @@ export function SearchResultsView({ query, setView }) {
 
   return (
     <div className="max-w-3xl mx-auto px-5 py-10">
-      <p className="text-sm text-gray-500 mb-1">검색 결과</p>
+      <p className="text-sm text-neutral-400 mb-1">검색 결과</p>
       <h1 className="font-serif-kr text-2xl mb-8">'{q}'</h1>
 
       {results.length === 0 ? (
-        <div className="border border-gray-200 p-8 text-center">
-          <p className="text-gray-600 mb-4">아직 밈 사전에 등록되지 않은 것 같아.</p>
-          <p className="text-sm text-gray-400 mb-3">이런 항목은 어때?</p>
+        <div className="surface-card p-10 text-center">
+          <p className="text-neutral-600 mb-4">아직 밈 사전에 등록되지 않은 것 같아.</p>
+          <p className="text-sm text-neutral-400 mb-3">이런 항목은 어때?</p>
           <div className="flex justify-center gap-2 flex-wrap">
             {suggestSimilar(q).map((m) => (
               <button
                 key={m.id}
                 onClick={() => setView({ name: "search", query: m.name })}
-                className="text-xs border border-gray-300 px-2.5 py-1 hover:border-black"
+                className="text-xs bg-white rounded-full ring-1 ring-neutral-200 px-3 py-1.5 hover:ring-violet-300 hover:text-violet-700 transition-all"
               >
                 {m.name}
               </button>
@@ -56,24 +56,24 @@ export function SearchResultsView({ query, setView }) {
           {exact && (
             <button
               onClick={() => setView({ name: "detail", id: exact.id })}
-              className="block w-full text-left border-2 border-black p-6 mb-10 hover:bg-gray-50"
+              className="block w-full text-left surface-card-interactive p-6 mb-10 ring-2 ring-violet-200"
             >
-              <div className="flex flex-wrap gap-1 mb-2">
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
                 {exact.categories.map((c) => (
                   <CategoryTag key={c}>{c}</CategoryTag>
                 ))}
               </div>
               <h2 className="font-serif-kr text-2xl mb-2">{exact.name}</h2>
-              <p className="text-gray-600">{exact.oneLiner}</p>
-              <span className="inline-flex items-center gap-1 text-sm mt-3 text-black">
+              <p className="text-neutral-600">{exact.oneLiner}</p>
+              <span className="inline-flex items-center gap-1 text-sm mt-3 text-violet-600 font-medium">
                 상세 보기 <ChevronRight size={14} />
               </span>
             </button>
           )}
           {grouped.map((g) => (
             <div key={g.cat} className="mb-10">
-              <h3 className="text-sm text-gray-500 border-b border-gray-200 pb-2 mb-4">{g.cat}</h3>
-              <div className="grid sm:grid-cols-2 gap-3">
+              <h3 className="text-sm text-neutral-500 border-b border-neutral-200 pb-2 mb-4">{g.cat}</h3>
+              <div className="grid sm:grid-cols-2 gap-3.5">
                 {g.items.map((m) => (
                   <MemeCard key={m.id} meme={m} onOpen={(id) => setView({ name: "detail", id })} />
                 ))}

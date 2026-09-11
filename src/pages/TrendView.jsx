@@ -28,24 +28,25 @@ export function TrendView({ setView }) {
 
   return (
     <div className="max-w-4xl mx-auto px-5 py-10">
-      <h1 className="font-serif-kr text-3xl mb-6">트렌드</h1>
+      <h1 className="font-serif-kr text-3xl mb-1">트렌드</h1>
+      <p className="text-sm text-neutral-400 mb-6">기간·카테고리별로 지금 유행하는 것들을 순위로 확인해봐.</p>
       <div className="mb-3">
         <PillTabs options={PERIODS} value={period} onChange={setPeriod} />
       </div>
       {period === "custom" && (
-        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+        <div className="flex items-center gap-2 mb-4 text-sm text-neutral-600">
           <input
             type="date"
             value={customStart}
             onChange={(e) => setCustomStart(e.target.value)}
-            className="border border-gray-300 px-2 py-1.5 outline-none focus:border-black"
+            className="input-field w-auto"
           />
-          <span>~</span>
+          <span className="text-neutral-300">~</span>
           <input
             type="date"
             value={customEnd}
             onChange={(e) => setCustomEnd(e.target.value)}
-            className="border border-gray-300 px-2 py-1.5 outline-none focus:border-black"
+            className="input-field w-auto"
           />
         </div>
       )}
@@ -54,25 +55,25 @@ export function TrendView({ setView }) {
       </div>
 
       {period === "custom" && (!customStart || !customEnd) ? (
-        <p className="text-sm text-gray-400 border-t border-black pt-6">
+        <p className="text-sm text-neutral-400 surface-card p-6 text-center">
           시작일과 종료일을 선택하면 해당 기간의 순위를 보여줄게.
         </p>
       ) : (
-        <div className="border-t border-black">
+        <div className="surface-card divide-y divide-neutral-100 overflow-hidden">
           {list.map(({ meme, r, ch, isNew, search, buzz }) => (
             <button
               key={meme.id}
               onClick={() => setView({ name: "detail", id: meme.id })}
-              className="flex items-center gap-4 w-full text-left py-4 border-b border-gray-100 hover:bg-gray-50"
+              className="flex items-center gap-4 w-full text-left py-4 px-4 hover:bg-neutral-50 transition-colors"
             >
-              <span className="w-7 shrink-0 text-lg text-gray-300">{r}</span>
+              <span className="w-7 shrink-0 text-lg text-neutral-300 font-serif-kr">{r}</span>
               <div className="flex-1 min-w-0">
-                <div className="text-black">{meme.name}</div>
-                <div className="text-xs text-gray-400 mt-0.5 truncate">{meme.oneLiner}</div>
+                <div className="text-neutral-900 font-medium">{meme.name}</div>
+                <div className="text-xs text-neutral-400 mt-0.5 truncate">{meme.oneLiner}</div>
               </div>
-              <div className="shrink-0 flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
+              <div className="shrink-0 flex items-center gap-1.5 text-xs text-neutral-500 whitespace-nowrap">
                 <span>검색량 {search}K</span>
-                <span>·</span>
+                <span className="text-neutral-300">·</span>
                 <span>화제성 {buzz}</span>
                 <RankChange ch={ch} isNew={isNew} />
               </div>
@@ -80,7 +81,7 @@ export function TrendView({ setView }) {
           ))}
         </div>
       )}
-      <p className="text-xs text-gray-400 mt-3">
+      <p className="text-xs text-neutral-400 mt-3">
         * 모든 순위·지표는 Mock Data입니다{period === "custom" && " (직접 설정 기간은 임의로 생성된 값)"}.
       </p>
     </div>

@@ -1,3 +1,4 @@
+import { Flame } from "lucide-react";
 import { CategoryTag } from "./CategoryTag";
 import { VerificationBadge } from "./VerificationBadge";
 
@@ -5,19 +6,23 @@ export function MemeCard({ meme, onOpen }) {
   return (
     <button
       onClick={() => onOpen(meme.id)}
-      className="text-left border border-gray-200 p-4 hover:border-black transition-colors w-full"
+      className="surface-card-interactive text-left p-4 w-full group"
     >
-      <div className="flex flex-wrap items-center gap-1 mb-2">
+      <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
         {meme.categories.map((c) => (
           <CategoryTag key={c}>{c}</CategoryTag>
         ))}
         <VerificationBadge verification={meme.verification} />
       </div>
-      <h3 className="font-serif-kr text-lg mb-1 text-black">{meme.name}</h3>
-      <p className="text-sm text-gray-600 leading-relaxed mb-2 line-clamp-2">{meme.oneLiner}</p>
-      <div className="flex items-center justify-between text-xs text-gray-500">
+      <h3 className="font-serif-kr text-lg mb-1 text-neutral-900 group-hover:brand-gradient-text transition-all">
+        {meme.name}
+      </h3>
+      <p className="text-sm text-neutral-500 leading-relaxed mb-3 line-clamp-2">{meme.oneLiner}</p>
+      <div className="flex items-center justify-between text-xs text-neutral-400">
         <span>{meme.period}</span>
-        <span>화제성 {meme.popularity.buzz}</span>
+        <span className="inline-flex items-center gap-1 text-rose-500 font-medium">
+          <Flame size={12} fill="currentColor" /> {meme.popularity.buzz}
+        </span>
       </div>
     </button>
   );

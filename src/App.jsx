@@ -15,7 +15,7 @@ export default function App() {
   const { view, setView, user, setUser, scraps, toggleScrap, recentlyViewed, logout } = useAppState();
 
   return (
-    <div className="font-sans-kr min-h-screen bg-white text-black">
+    <div className="font-sans-kr min-h-screen bg-neutral-50 text-neutral-900">
       <NavBar view={view} setView={setView} user={user} onLogout={logout} />
 
       {view.name === "home" && <HomeView setView={setView} />}
@@ -35,8 +35,8 @@ export default function App() {
         <ScrapsView user={user} scraps={scraps} toggleScrap={toggleScrap} setView={setView} />
       )}
 
-      <footer className="border-t border-gray-200 mt-16 py-8">
-        <div className="max-w-5xl mx-auto px-5 text-xs text-gray-400">
+      <footer className="border-t border-neutral-200 mt-16 py-8">
+        <div className="max-w-5xl mx-auto px-5 text-xs text-neutral-400">
           유행도감 · 프로토타입 버전 · 모든 순위·통계·인물 정보는 Mock Data이며 실제 사실이 아닙니다.
         </div>
       </footer>

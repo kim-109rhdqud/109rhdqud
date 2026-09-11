@@ -7,16 +7,17 @@
 
 body {
   margin: 0;
-  background: #fff;
-  color: #000;
+  background: #fafafa;
+  color: #0a0a0a;
   font-family: 'Noto Sans KR', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* 이름과 달리 실제로는 Noto Sans KR bold를 쓰는 제목용 클래스 — serif 아님 */
 .font-serif-kr {
   font-family: 'Noto Sans KR', sans-serif;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .font-sans-kr {
@@ -28,4 +29,66 @@ body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+::selection {
+  background: #d8b4fe;
+  color: #1e1033;
+}
+
+/* 얇고 은은한 스크롤바 — 기본 브라우저 스크롤바보다 화면 톤에 잘 붙음 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e5e5e5;
+  border-radius: 999px;
+  border: 2px solid #fafafa;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c4c4c4;
+}
+
+@layer components {
+  /* 브랜드 그라데이션 — 트렌드/에너지를 상징하는 보라→핑크. 남발하지 않고
+     로고·CTA·강조 텍스트·1위 배지처럼 "여기가 포인트다" 싶은 곳에만 씀. */
+  .brand-gradient {
+    background-image: linear-gradient(100deg, #7c3aed, #d946ef 60%, #f43f5e);
+  }
+  .brand-gradient-text {
+    background-image: linear-gradient(100deg, #7c3aed, #d946ef 60%, #f43f5e);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .surface-card {
+    @apply bg-white rounded-2xl ring-1 ring-neutral-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)];
+  }
+  .surface-card-interactive {
+    @apply bg-white rounded-2xl ring-1 ring-neutral-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200 hover:shadow-[0_12px_24px_-8px_rgba(124,58,237,0.18)] hover:ring-neutral-300 hover:-translate-y-0.5;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-[0_4px_14px_-4px_rgba(124,58,237,0.5)] transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgba(124,58,237,0.6)] hover:brightness-[1.08] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:hover:brightness-100;
+    background-image: linear-gradient(100deg, #7c3aed, #d946ef 60%, #f43f5e);
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-all duration-200 hover:border-neutral-900 hover:text-neutral-900 active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-neutral-500 transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-900;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm text-neutral-900 outline-none transition-all duration-150 placeholder:text-neutral-400 focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-500/10;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium leading-none;
+  }
 }

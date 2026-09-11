@@ -9,8 +9,8 @@ export function MyPageView({ user, scraps, recentlyViewed, setView }) {
   if (!user) {
     return (
       <div className="max-w-md mx-auto px-5 py-20 text-center">
-        <p className="text-gray-600 mb-4">로그인이 필요해.</p>
-        <button onClick={() => setView({ name: "auth" })} className="border border-black px-4 py-2 text-sm hover:bg-black hover:text-white">
+        <p className="text-neutral-600 mb-4">로그인이 필요해.</p>
+        <button onClick={() => setView({ name: "auth" })} className="btn-primary">
           로그인하러 가기
         </button>
       </div>
@@ -26,15 +26,17 @@ export function MyPageView({ user, scraps, recentlyViewed, setView }) {
 
   return (
     <div className="max-w-3xl mx-auto px-5 py-10">
-      <div className="flex items-start justify-between gap-4 mb-10">
-        <div>
-          <h1 className="font-serif-kr text-3xl mb-1">마이페이지</h1>
-          <p className="text-sm text-gray-500">{user.nickname}님</p>
+      <div className="flex items-center justify-between gap-4 mb-12">
+        <div className="flex items-center gap-3.5">
+          <span className="w-12 h-12 rounded-full brand-gradient text-white flex items-center justify-center font-serif-kr text-lg shadow-[0_4px_14px_-4px_rgba(124,58,237,0.5)]">
+            {user.nickname.slice(0, 1)}
+          </span>
+          <div>
+            <h1 className="font-serif-kr text-2xl">{user.nickname}님</h1>
+            <p className="text-sm text-neutral-400">마이페이지</p>
+          </div>
         </div>
-        <button
-          onClick={() => setView({ name: "editProfile" })}
-          className="shrink-0 text-sm border border-gray-300 px-3 py-1.5 hover:border-black"
-        >
+        <button onClick={() => setView({ name: "editProfile" })} className="btn-secondary shrink-0 text-sm !py-1.5">
           내 정보 수정
         </button>
       </div>
@@ -45,16 +47,16 @@ export function MyPageView({ user, scraps, recentlyViewed, setView }) {
           {scrapMemes.length > 0 && (
             <button
               onClick={() => setView({ name: "scraps" })}
-              className="text-xs text-gray-500 hover:text-black flex items-center gap-0.5"
+              className="text-xs text-neutral-500 hover:text-violet-600 flex items-center gap-0.5 transition-colors"
             >
               전체보기 <ChevronRight size={12} />
             </button>
           )}
         </div>
         {scrapMemes.length === 0 ? (
-          <p className="text-sm text-gray-400">아직 스크랩한 밈이 없어.</p>
+          <p className="text-sm text-neutral-400">아직 스크랩한 밈이 없어.</p>
         ) : (
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3.5">
             {scrapMemes.slice(0, SCRAP_PREVIEW_COUNT).map((m) => (
               <MemeCard key={m.id} meme={m} onOpen={(id) => setView({ name: "detail", id })} />
             ))}
@@ -65,14 +67,14 @@ export function MyPageView({ user, scraps, recentlyViewed, setView }) {
       <section className="mb-12">
         <h2 className="font-serif-kr text-lg mb-4">최근 본 밈</h2>
         {recentMemes.length === 0 ? (
-          <p className="text-sm text-gray-400">최근에 본 밈이 없어.</p>
+          <p className="text-sm text-neutral-400">최근에 본 밈이 없어.</p>
         ) : (
           <div className="flex gap-2 flex-wrap">
             {recentMemes.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setView({ name: "detail", id: m.id })}
-                className="text-sm border border-gray-300 px-3 py-1.5 hover:border-black"
+                className="text-sm bg-white rounded-full ring-1 ring-neutral-200 px-3.5 py-1.5 hover:ring-violet-300 hover:text-violet-700 transition-all shadow-sm"
               >
                 {m.name}
               </button>
@@ -88,7 +90,7 @@ export function MyPageView({ user, scraps, recentlyViewed, setView }) {
             <button
               key={meme.id}
               onClick={() => setView({ name: "detail", id: meme.id })}
-              className="text-sm border border-gray-300 px-3 py-1.5 hover:border-black"
+              className="text-sm bg-white rounded-full ring-1 ring-neutral-200 px-3.5 py-1.5 hover:ring-violet-300 hover:text-violet-700 transition-all shadow-sm"
             >
               {meme.name}
             </button>
@@ -99,18 +101,18 @@ export function MyPageView({ user, scraps, recentlyViewed, setView }) {
       <section>
         <h2 className="font-serif-kr text-lg mb-4">내 스크랩 폴더</h2>
         {folders.length === 0 ? (
-          <p className="text-sm text-gray-400">폴더는 스크랩한 항목이 있으면 카테고리별로 자동 생성돼.</p>
+          <p className="text-sm text-neutral-400">폴더는 스크랩한 항목이 있으면 카테고리별로 자동 생성돼.</p>
         ) : (
           <div className="space-y-4">
             {folders.map((f) => (
               <div key={f.cat}>
-                <div className="text-xs text-gray-400 mb-1.5">{f.cat} ({f.items.length})</div>
+                <div className="text-xs text-neutral-400 mb-1.5">{f.cat} ({f.items.length})</div>
                 <div className="flex gap-2 flex-wrap">
                   {f.items.map((m) => (
                     <button
                       key={m.id}
                       onClick={() => setView({ name: "detail", id: m.id })}
-                      className="text-xs border border-gray-200 px-2 py-1 hover:border-black"
+                      className="text-xs bg-white rounded-full ring-1 ring-neutral-200 px-2.5 py-1 hover:ring-violet-300 transition-all"
                     >
                       {m.name}
                     </button>

@@ -27,7 +27,7 @@ export function DictionaryView({ setView }) {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value)}
-          className="text-sm border border-gray-300 px-2 py-1.5 outline-none"
+          className="input-field w-auto py-1.5 bg-white"
         >
           <option value="recent">최근 유행순</option>
           <option value="popular">인기순</option>
@@ -39,12 +39,12 @@ export function DictionaryView({ setView }) {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="사전 안에서 검색"
-        className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black mb-6"
+        className="input-field mb-6"
       />
       {list.length === 0 ? (
-        <p className="text-sm text-gray-400">조건에 맞는 항목이 없어.</p>
+        <p className="text-sm text-neutral-400 surface-card p-8 text-center">조건에 맞는 항목이 없어.</p>
       ) : (
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="grid sm:grid-cols-3 gap-3.5">
           {list.map((m) => (
             <MemeCard key={m.id} meme={m} onOpen={(id) => setView({ name: "detail", id })} />
           ))}

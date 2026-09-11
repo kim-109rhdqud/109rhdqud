@@ -22,7 +22,7 @@ export function ArchiveView({ setView }) {
   return (
     <div className="max-w-3xl mx-auto px-5 py-10">
       <h1 className="font-serif-kr text-3xl mb-6">역사</h1>
-      <div className="pb-2 mb-8 border-b border-gray-200">
+      <div className="pb-4 mb-8 border-b border-neutral-200">
         <PillTabs options={YEAR_OPTIONS} value={year} onChange={setYear} wrap={false} shrink />
       </div>
 
@@ -30,32 +30,32 @@ export function ArchiveView({ setView }) {
         <h2 className="font-serif-kr text-2xl">{year}년 인터넷 연감</h2>
         <MockTag />
       </div>
-      <p className="text-sm text-gray-400 mb-6">그 해 대한민국 인터넷을 채웠던 흐름을 월별로 정리했어.</p>
+      <p className="text-sm text-neutral-400 mb-6">그 해 대한민국 인터넷을 채웠던 흐름을 월별로 정리했어.</p>
 
-      <div className="divide-y divide-gray-200 border-t border-b border-gray-200">
+      <div className="surface-card divide-y divide-neutral-100 overflow-hidden">
         {months.map((m) => {
           const hit = monthHighlight(year, m);
           return (
-            <div key={m} className="py-4">
-              <div className="text-xs text-gray-400 mb-1">
+            <div key={m} className="py-4 px-5">
+              <div className="text-xs text-neutral-400 mb-1">
                 {year}년 {m}월
               </div>
               {hit ? (
                 <button
                   onClick={() => setView({ name: "detail", id: hit.meme.id })}
-                  className="text-left hover:underline"
+                  className="text-left group"
                 >
-                  <span className="text-black">{hit.meme.name}</span>
-                  <span className="block text-xs text-gray-500 mt-0.5">{hit.text}</span>
+                  <span className="text-neutral-900 font-medium group-hover:brand-gradient-text transition-all">{hit.meme.name}</span>
+                  <span className="block text-xs text-neutral-500 mt-0.5">{hit.text}</span>
                 </button>
               ) : (
-                <span className="text-gray-300">○○</span>
+                <span className="text-neutral-300">○○</span>
               )}
             </div>
           );
         })}
       </div>
-      <p className="text-xs text-gray-400 mt-3">
+      <p className="text-xs text-neutral-400 mt-3">
         * ○○는 아직 기록이 등록되지 않은 달이야. 채워진 항목도 프로토타입용 Mock Data라 실제 역사적 사실이 아니야.
       </p>
     </div>

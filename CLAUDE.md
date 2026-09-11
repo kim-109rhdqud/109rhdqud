@@ -37,9 +37,17 @@
 - `server/` — 백엔드 API(Express). `src/index.js`(엔트리), `src/routes/`(auth/memes/scraps/submissions), `src/middleware/auth.js`(JWT 검증 + role 체크), `prisma/schema.prisma`(스키마), `prisma/seed.js`(Mock 데이터 이관). 프론트와 완전히 독립된 npm 패키지(모노레포 — 별도 레포 아님).
 
 ## 디자인 컨벤션
-- 흑백 모노톤, 얇은 border 기반 카드 UI (그림자·둥근 모서리 거의 안 씀)
+- **2026-09-11부터 "딱딱한 모노톤" 컨벤션(그림자·둥근 모서리 거의 안 씀)을 폐기하고, 상용 웹 서비스에 가까운 방향으로 전면 리디자인함.** 기반은 여전히 중립 톤(흰색/뉴트럴 그레이)이지만 아래 요소로 화려함·입체감을 더함:
+  - **브랜드 그라데이션**(보라→핑크→로즈, `src/index.css`의 `.brand-gradient`/`.brand-gradient-text`) — 로고, 주요 CTA 버튼, 활성 탭/네비 밑줄, 1위 랭킹 배지, 섹션 제목 앞 강조바처럼 "포인트"가 필요한 곳에만 씀. 색을 여기저기 남발하면 안 됨 — 이 그라데이션 하나로 통일.
+  - **카드**: `rounded-2xl` + 은은한 그림자(`surface-card`/`surface-card-interactive` 유틸리티 클래스, `src/index.css` 참고) + hover 시 살짝 떠오르는 효과(`-translate-y-0.5`).
+  - **카테고리 태그**: 카테고리별로 다른 파스텔 배경색(`CategoryTag.jsx`의 `CATEGORY_COLORS` 맵) — 색상 종류는 제한해서 산만해지지 않게 함.
+  - **랭킹 등락**: 국내 차트 서비스 관행대로 상승 = 빨강(rose), 하락 = 파랑(blue).
+  - **인증마크**: 트렌드 브랜드 컬러(보라/핑크)와 구분되게 에메랄드 톤(신뢰/검증의 의미를 색으로 전달).
+  - **네비게이션**: `backdrop-blur` 반투명 흰색(글래스모피즘), sticky.
+  - **공용 유틸리티 클래스**(`src/index.css`의 `@layer components`): `.btn-primary`(그라데이션 CTA), `.btn-secondary`, `.btn-ghost`, `.input-field`, `.pill`, `.surface-card`, `.surface-card-interactive` — 새 UI 짤 때 최대한 이거 재사용할 것. Tailwind v4에서는 `@apply`로 커스텀 클래스(`brand-gradient` 등)를 또 다른 커스텀 클래스 안에 넣을 수 없음(실제 Tailwind 유틸리티만 `@apply` 가능) — 그라데이션이 필요하면 `background-image`를 일반 CSS로 직접 쓰거나 클래스를 나란히 붙일 것.
+  - 화려해졌어도 "정신없지 않게" — 그라데이션은 브랜드 컬러 하나로 제한, 카테고리 색은 옅은 파스텔 톤만, 애니메이션은 전부 150~200ms 이내의 미세한 transition/hover 효과로 제한(과한 모션 없음).
 - 폰트는 Noto Sans KR. `font-serif-kr` 클래스는 이름과 달리 실제로는 Noto Sans KR bold(굵은 고딕)를 적용함 — serif 폰트가 아니니 이름에 헷갈리지 말 것.
-- 실제 통계·인물·영상 데이터가 아닌 섹션에는 `<MockTag />`로 "Mock Data" 표시를 붙임
+- 실제 통계·인물·영상 데이터가 아닌 섹션에는 `<MockTag />`로 "Mock Data" 표시를 붙임(이제 amber 톤 pill 스타일)
 
 ## 데이터
 - `MEMES` 배열이 프론트의 유일한 데이터 소스 (`src/data/memes.js`, `memeById`로 조회). 프론트는 아직 이걸 정적 import로 읽음 — 백엔드 `/memes` API로 교체하는 작업이 남아있음([docs/BACKEND.md](docs/BACKEND.md) 참고). 같은 데이터가 `server/prisma/seed.js`를 통해 실제 DB(`memes` 테이블)에도 이관돼 있지만, 프론트가 아직 그걸 안 씀 — 두 군데를 동시에 손대야 할 상황이면 주의.
