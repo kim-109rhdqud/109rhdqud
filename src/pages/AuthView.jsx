@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { login, signup } from "../lib/api";
 
+const inputClass = "w-full border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black";
+
 export function AuthView({ setView, onAuth }) {
   const [mode, setMode] = useState("login");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [realName, setRealName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -14,7 +20,10 @@ export function AuthView({ setView, onAuth }) {
     setError("");
     setSubmitting(true);
     try {
-      const user = mode === "login" ? await login({ email, password }) : await signup({ nickname, email, password });
+      const user =
+        mode === "login"
+          ? await login({ username, password })
+          : await signup({ username, password, nickname, email, realName, birthDate, phone });
       onAuth(user);
       setView({ name: "mypage" });
     } catch (err) {
@@ -41,22 +50,12 @@ export function AuthView({ setView, onAuth }) {
         ))}
       </div>
       <form onSubmit={submit} className="space-y-3">
-        {mode === "signup" && (
-          <input
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            placeholder="닉네임"
-            required
-            className="w-full border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
-          />
-        )}
         <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          type="email"
-          placeholder="이메일"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="아이디"
           required
-          className="w-full border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+          className={inputClass}
         />
         <input
           value={password}
@@ -65,8 +64,54 @@ export function AuthView({ setView, onAuth }) {
           placeholder="비밀번호 (8자 이상)"
           required
           minLength={8}
-          className="w-full border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+          className={inputClass}
         />
+
+        {mode === "signup" && (
+          <>
+            <input
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="닉네임"
+              required
+              className={inputClass}
+            />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              placeholder="이메일"
+              required
+              className={inputClass}
+            />
+            <input
+              value={realName}
+              onChange={(e) => setRealName(e.target.value)}
+              placeholder="실명"
+              required
+              className={inputClass}
+            />
+            <label className="block">
+              <span className="block text-xs text-gray-500 mb-1">생년월일</span>
+              <input
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                type="date"
+                required
+                className={inputClass}
+              />
+            </label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              type="tel"
+              placeholder="휴대전화번호 (예: 010-1234-5678)"
+              required
+              className={inputClass}
+            />
+          </>
+        )}
+
         {error && <p className="text-xs text-red-600">{error}</p>}
         <button
           type="submit"

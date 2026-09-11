@@ -55,9 +55,13 @@
   오버엔지니어링.
 - `verification` (+ sources, changeLog) — 오늘 만든 [VerificationBadge](../src/components/VerificationBadge.jsx)
   인증마크 구조를 테이블로 옮김.
-- `users` — Auth 유저 테이블(email, **nickname**, passwordHash, role: `user`/`editor`/`admin`). `nickname`은
-  최초 스키마 초안엔 빠져있었는데, 프론트 `AuthView`/`NavBar`/`MyPageView`/`ScrapsView`가 전부
-  `user.nickname`을 참조하고 있는 걸 뒤늦게 발견해서 추가함(2026-09-11).
+- `users` — Auth 유저 테이블. 컬럼: `email`, `nickname`, `username`(로그인용 아이디, email과 별개),
+  `realName`(실명), `birthDate`, `phone`, `passwordHash`, `role`(`user`/`editor`/`admin`). **로그인은
+  email이 아니라 username 기준**(2026-09-11 사용자 요청으로 변경). `username`/`realName`/`birthDate`/
+  `phone`은 최초 스키마 초안엔 없었는데 실제 회원가입 요구사항(실명 기반 가입 + 아이디 로그인)이
+  나오면서 추가함. `username`·`email`·`phone` 전부 unique 제약. 프로필 수정(`PATCH /auth/me`)에서는
+  `username`·`birthDate`는 신원 확인용 고정값으로 보고 수정 불가, 나머지(`nickname`/`email`/`realName`/
+  `phone`)만 수정 가능하게 함 — 필요하면 나중에 조정.
 - `scraps` — `user_id` + `meme_id` 조인 테이블. 기존 localStorage 스크랩을 대체.
 - `submissions` — [STRATEGY.md](STRATEGY.md) 2-6 "제보 → 에디터 승인 큐" 절충안을 위한 테이블
   (status: `pending` / `approved` / `rejected`, `reviewed_by`, `reviewed_at`).
@@ -65,7 +69,9 @@
   낮은 개인화 기능이라 스코프에서 제외.
 
 ## API 엔드포인트 (구현 완료, 실제 코드 기준)
-- `POST /auth/signup`(nickname/email/password), `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
+- `POST /auth/signup`(username/password/nickname/email/realName/birthDate/phone 전부 필수),
+  `POST /auth/login`(**username**+password), `POST /auth/logout`, `GET /auth/me`,
+  `PATCH /auth/me`(nickname/email/realName/phone 수정, username/birthDate는 불변)
 - `GET /memes`(검색/필터 쿼리: `?category=`, `?q=`), `GET /memes/:id`
 - `GET /scraps`(로그인 필요), `POST /scraps/:memeId`, `DELETE /scraps/:memeId`
 - `POST /submissions`(제보), `GET /submissions`(에디터는 전체 큐, 일반 유저는 자기 것만),
@@ -100,6 +106,15 @@
   `node node_modules/prisma/build/index.js <command>`로 직접 실행하면 우회됨.
 - **중요 발견 2**: 이 PC방 네트워크는 5432 포트도 막아놔서 표준 Postgres 접속 자체가 안 됨. Neon
   어댑터로 전환해서 해결(위 참고).
+- **회원가입/로그인 필드 확장 + 프로필 수정 기능 추가**: 사용자가 실명 기반 가입 흐름(이메일/닉네임/
+  아이디/실명/생년월일/휴대전화번호)과 아이디+비밀번호 로그인을 요청해서 반영. `users` 테이블에
+  `username`/`realName`/`birthDate`/`phone` 추가(마이그레이션: `20260911160000_add_user_profile_fields`),
+  로그인을 email→username 기준으로 변경, `PATCH /auth/me` 신규(닉네임/이메일/실명/휴대전화번호 수정
+  가능, 아이디/생년월일은 불변으로 설계 — 신원 확인용 고정값으로 보는 게 합리적이라 판단, 필요하면
+  나중에 바꿀 수 있음). 프론트엔 [EditProfileView](../src/pages/EditProfileView.jsx) 신규(마이페이지에서
+  "내 정보 수정" 버튼으로 진입). email/username/phone 중복 시 구체적으로 뭐가 겹쳤는지 알려주는
+  409 에러도 curl로 확인함. 이 작업 중에 마이그레이션 적용 전 `users` 테이블에 브라우저로 직접
+  테스트하며 만들어진 계정(`111@111`)이 남아있는 걸 발견해서 정리하고 진행함.
 
 ## 다음에 구현할 순서
 1. ~~`server/` 디렉토리 세팅~~ 완료

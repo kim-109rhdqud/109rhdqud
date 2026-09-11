@@ -23,6 +23,7 @@
 - **중요 발견 1**: `npm install`도 Prisma처럼 postinstall 스크립트 있는 패키지가 끼면 cmd.exe 스폰이 막혀서 실패할 수 있음 — `--ignore-scripts`로 설치 후 `node node_modules/prisma/build/index.js generate`처럼 직접 실행하면 우회됨.
 - **중요 발견 2(꽤 큼)**: 이 PC방 네트워크는 Postgres 기본 포트(5432)도 막아놔서 표준 TCP로는 DB 접속 자체가 불가능했음(443은 정상). `@neondatabase/serverless` + `@prisma/adapter-neon`으로 HTTP/WebSocket 접속하게 바꿔서 해결 — `prisma migrate dev`는 여전히 이 네트워크에서 안 되므로, 스키마 변경 시 `migrate diff --script`로 SQL만 뽑아서 직접 실행하는 방식을 써야 함. 둘 다 CLAUDE.md/BACKEND.md에 상세히 기록해둠.
 - **프론트 `AuthView`를 실제 API에 연결 완료** — `src/lib/api.js` 신규(fetch 래퍼), 로그인/회원가입이 진짜 `/auth/*` API를 호출하고 실패 시 에러 메시지도 화면에 뜸. 로그인 세션은 이제 localStorage가 아니라 **서버의 httpOnly 쿠키**로 관리(앱 로드 시 `/auth/me`로 확인). 이 과정에서 User 스키마에 `nickname` 컬럼이 원래 빠져있던 것(프론트 3곳에서 이미 쓰고 있었음)과 비밀번호 입력값이 아예 캡처 안 되던 버그를 발견해 같이 고침. 프론트+백엔드 동시 기동해서 회원가입→쿠키→닉네임 저장까지 end-to-end 확인 완료.
+- **회원가입/로그인 필드 확장 + 프로필 수정 기능 추가** (사용자 요청) — 회원가입 시 닉네임/이메일/아이디/실명/생년월일/휴대전화번호 전부 입력받고, 로그인은 이메일 대신 **아이디**로 하도록 변경. `users` 테이블에 컬럼 4개 추가(마이그레이션), 새 페이지 [EditProfileView](../src/pages/EditProfileView.jsx)로 마이페이지에서 "내 정보 수정"(닉네임/이메일/실명/휴대전화번호, 아이디·생년월일은 불변) 가능. 중복 아이디/이메일/휴대전화번호 각각 구체적인 에러 메시지까지 확인. 자세한 내용은 [docs/BACKEND.md](BACKEND.md) 참고.
 
 ## 진행 중 / 다음에 할 일
 - **다음 세션 핵심 과제 — [docs/BACKEND.md](BACKEND.md) "다음에 구현할 순서" 5번부터**: `/memes` API로 프론트 데이터 fetch를 정적 import에서 교체 (거의 모든 페이지가 영향받는 큰 작업이라 페이지 단위로 나눠서 진행 추천).

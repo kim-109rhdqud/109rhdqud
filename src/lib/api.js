@@ -18,22 +18,30 @@ async function request(path, options = {}) {
   return body;
 }
 
-export function signup({ nickname, email, password }) {
+export function signup({ nickname, email, username, realName, birthDate, phone, password }) {
   return request("/auth/signup", {
     method: "POST",
-    body: JSON.stringify({ nickname, email, password }),
+    body: JSON.stringify({ nickname, email, username, realName, birthDate, phone, password }),
   });
 }
 
-export function login({ email, password }) {
+// 이메일이 아니라 아이디(username)로 로그인함.
+export function login({ username, password }) {
   return request("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ username, password }),
   });
 }
 
 export function logout() {
   return request("/auth/logout", { method: "POST" });
+}
+
+export function updateMe({ nickname, email, realName, phone }) {
+  return request("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify({ nickname, email, realName, phone }),
+  });
 }
 
 // 로그인 안 된 상태면 서버가 401을 주는데, 이건 에러가 아니라 "로그아웃 상태"라는 정상적인 정보라서

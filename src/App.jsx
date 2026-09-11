@@ -8,6 +8,7 @@ import { DictionaryView } from "./pages/DictionaryView";
 import { ArchiveView } from "./pages/ArchiveView";
 import { AuthView } from "./pages/AuthView";
 import { MyPageView } from "./pages/MyPageView";
+import { EditProfileView } from "./pages/EditProfileView";
 import { ScrapsView } from "./pages/ScrapsView";
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
       {view.name === "mypage" && (
         <MyPageView user={user} scraps={scraps} recentlyViewed={recentlyViewed} setView={setView} />
       )}
+      {view.name === "editProfile" && <EditProfileView user={user} onUpdate={setUser} setView={setView} />}
       {view.name === "scraps" && (
         <ScrapsView user={user} scraps={scraps} toggleScrap={toggleScrap} setView={setView} />
       )}

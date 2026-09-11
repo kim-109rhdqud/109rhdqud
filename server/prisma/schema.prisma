@@ -33,6 +33,10 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   nickname     String
+  username     String   @unique // 로그인용 아이디 (이메일과 별개)
+  realName     String // 실명
+  birthDate    DateTime // 생년월일
+  phone        String   @unique // 휴대전화번호
   passwordHash String
   role         Role     @default(user)
   createdAt    DateTime @default(now())
