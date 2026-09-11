@@ -4,7 +4,7 @@
 
 ## 기술 스택
 - 프론트: React 19 + Vite, Tailwind CSS 4 (`@tailwindcss/vite` 플러그인), lucide-react(아이콘), oxlint(린트, TypeScript 아님 — 순수 JSX)
-- 백엔드(`server/`, 2026-09-11 추가, 구현 진행 중): Node + Express, Prisma(ORM), Neon(PostgreSQL 호스팅), 인증은 bcryptjs + jsonwebtoken(httpOnly 쿠키). 결정 배경은 [docs/BACKEND.md](docs/BACKEND.md) 참고.
+- 백엔드(`server/`, 2026-09-11 추가, 구현 진행 중): Node + Express, Prisma(ORM), Neon(PostgreSQL 호스팅) — 단, 이 PC방 네트워크가 표준 Postgres 포트(5432)를 막아놔서 `@prisma/adapter-neon` + `@neondatabase/serverless`로 HTTP/WebSocket(443) 기반 접속을 씀. 인증은 bcryptjs + jsonwebtoken(httpOnly 쿠키). 결정 배경은 [docs/BACKEND.md](docs/BACKEND.md) 참고.
 
 ## 실행 명령어
 프론트(레포 루트에서):
@@ -15,10 +15,13 @@
 
 백엔드(`server/` 디렉토리에서, **npm run 대신 항상 아래처럼 직접 실행** — 이유는 아래 "PC방 컴퓨터" 항목 참고):
 - `node src/index.js` — API 서버 실행 (기본 포트 4000)
-- `node node_modules/prisma/build/index.js generate` — Prisma Client 생성
-- `node node_modules/prisma/build/index.js migrate dev` — 스키마 마이그레이션
+- `node node_modules/prisma/build/index.js generate` — Prisma Client 생성 (스키마만 읽음, DB 연결 불필요)
 - `node prisma/seed.js` — 기존 Mock 데이터(`src/data/memes.js`)를 DB로 이관하는 시드 스크립트
 - 최초 실행 전 `server/.env.example`을 `server/.env`로 복사하고 값 채울 것 (git에 안 잡힘 — PC 바뀔 때마다 새로 만들어야 함)
+- **`prisma migrate dev`/`deploy`는 이 네트워크(5432 포트 차단)에서 안 됨** — 마이그레이션 엔진이 어댑터를 안 타고 자체적으로 TCP 접속을 시도하기 때문. 스키마를 바꿨으면 대신:
+  1. `node node_modules/prisma/build/index.js migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script` (DB 연결 없이 SQL만 생성)
+  2. 그 SQL을 `@neondatabase/serverless`의 `Pool`로 직접 실행 (443 포트, docs/BACKEND.md에 실제 사용한 스크립트 예시 있음)
+  3. `_prisma_migrations` 이력 테이블엔 안 남으므로, 5432가 뚫리는 네트워크(집 등)에서 작업할 기회가 있으면 그때 `prisma migrate resolve --applied <migration명>`으로 한 번 동기화해줄 것.
 
 ## 현재 아키텍처
 - [src/App.jsx](src/App.jsx)는 얇은 셸(shell)만 담당 — `useAppState` 훅으로 상태를 받아 NavBar와 현재 view에 맞는 페이지를 렌더링.
@@ -56,3 +59,4 @@
   - `child_process.exec`/`execSync`처럼 내부적으로 cmd.exe를 거치는 호출만 막히고, `execFile`/`spawn`으로 바이너리를 직접 실행하는 건 정상 동작함(node.exe, bash.exe, git.exe 등). `npm install` 자체는 이 프론트엔드 의존성(vite, tailwind, oxlint, lucide-react 등 — install/postinstall 스크립트 없음)에 한해서는 cmd.exe를 안 거치므로 문제없이 된다.
   - **단, `npm install`도 무조건 안전한 건 아님(2026-09-11, `server/` 추가하면서 확인)** — 설치하려는 패키지 중 `postinstall` 등 라이프사이클 스크립트가 있는 경우(예: `prisma`), npm이 그 스크립트를 실행하려고 내부적으로 cmd.exe를 스폰하면서 똑같이 막힘 → `npm error errno: -4048, code: 'EPERM', syscall: 'spawn'`로 설치 자체가 실패한다. 대응: `npm install --ignore-scripts`로 라이프사이클 스크립트를 건너뛰고 설치한 뒤, 필요한 스크립트(예: `prisma generate`)는 `node node_modules/prisma/build/index.js generate`처럼 실제 바이너리를 직접 호출해서 수동으로 실행할 것. `npx <cli>`도 내부적으로 같은 방식이라 막힐 수 있으니 `npx` 대신 항상 `node node_modules/<pkg>/<entry>` 직접 호출 패턴을 우선 시도할 것.
   - Vite 8.2.2는 추가로 Windows 설정 로딩 시 내부적으로 `exec("net use")`를 호출(`node_modules/vite/dist/node/chunks/node.js`의 `optimizeSafeRealPathSync`)하는데 이것도 cmd.exe라서 막힌다. 그 `exec(...)` 호출을 `try { ... } catch { safeRealpathSync = fs.realpathSync.native; }`로 감싸면 우회되지만(네트워크 드라이브 판별만 건너뜀, 로컬 드라이브엔 영향 없음), `node_modules`는 git에 안 잡히므로 `npm install`을 다시 하면 사라지는 임시 조치임 — 필요할 때마다 다시 적용.
+- **이 PC방 컴퓨터(같은 네트워크)는 추가로 Postgres 기본 포트(5432) 아웃바운드 자체를 막아놓음(확인됨: 2026-09-11).** 443(HTTPS)은 정상 연결됨. 그래서 `DATABASE_URL`이 정확해도 `prisma migrate`/일반 TCP 기반 Postgres 클라이언트는 전부 `P1001: Can't reach database server`로 타임아웃남 — Neon 프로젝트나 연결 문자열 문제가 아니라 네트워크 정책 문제였음. 대응: 서버(`server/`)는 표준 TCP 대신 **Neon의 HTTP/WebSocket 기반 드라이버(`@neondatabase/serverless` + `@prisma/adapter-neon`)로 접속**하도록 만들어둠 — 이건 443 포트만 쓰므로 이 네트워크에서도 정상 동작함(자세한 내용과 마이그레이션 적용 방법은 [docs/BACKEND.md](docs/BACKEND.md) 참고). 다른(제약 없는) 네트워크에서 작업할 땐 이 어댑터가 오히려 불필요할 수도 있지만, 굳이 걷어낼 필요는 없음 — 어차피 정상 동작함.

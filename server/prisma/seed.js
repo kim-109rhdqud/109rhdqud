@@ -2,9 +2,12 @@
 // 실행: node prisma/seed.js (npm run으로 감싸지 말 것 — CLAUDE.md의 cmd.exe 이슈 참고)
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaNeon } from "@prisma/adapter-neon";
 import { MEMES } from "../../src/data/memes.js";
 
-const prisma = new PrismaClient();
+// src/lib/prisma.js와 동일하게 Neon HTTP/WebSocket 어댑터 사용 (docs/BACKEND.md 참고)
+const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   for (const m of MEMES) {

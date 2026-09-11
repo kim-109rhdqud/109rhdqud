@@ -19,13 +19,14 @@
 - **STRATEGY.md 2-3(인증마크의 순환 신뢰 문제) 해결 및 기획 전체 확정.** "브랜드 권위" 대신 "클릭하면 검증 가능한 근거"로 인증마크 의미를 재정의.
 - **인증마크(에디터 검증) 기능 구현.** `src/data/memes.js`에 `verification` 필드 추가(알잘딱깔센/오운완/무물 3개 `verified: true` + 출처·검수자·수정이력, 나머지 6개 `verified: false`). [src/components/VerificationBadge.jsx](../src/components/VerificationBadge.jsx) 신규 작성(목록용 배지 + 상세 페이지용 전체 섹션), `MemeCard`/`DetailView`에 연결. build/lint 재검증 완료.
 - **백엔드 아키텍처 논의 및 확정** — Node/Express + Neon(Postgres) + Prisma + httpOnly 쿠키 JWT, 모노레포(`server/` 디렉토리) 구조로 결정. 데이터 모델·API 엔드포인트 초안·구현 순서를 [docs/BACKEND.md](BACKEND.md)에 정리.
-- **백엔드 골격 구현 완료** — `server/` 신규(Express 앱, Prisma 스키마, 인증/밈/스크랩/제보 라우트, Mock 데이터 이관용 시드 스크립트). `node src/index.js`로 기동 + `/health` 확인, lint 클린. Neon DB가 아직 없어서 실제 DB 연동 동작 확인은 못 함(placeholder `DATABASE_URL`로 서버만 뜨는 것까지 검증).
-- **중요 발견**: `npm install`도 Prisma처럼 postinstall 스크립트 있는 패키지가 끼면 cmd.exe 스폰이 막혀서 실패할 수 있음 — `--ignore-scripts`로 설치 후 `node node_modules/prisma/build/index.js generate`처럼 직접 실행하면 우회됨. CLAUDE.md/BACKEND.md에 기록해둠.
+- **백엔드 골격 구현 + 실제 DB 연동까지 전부 완료** — `server/` 신규(Express 앱, Prisma 스키마, 인증/밈/스크랩/제보 라우트, Mock 데이터 이관용 시드 스크립트). 사용자가 Neon 프로젝트 생성 후, 마이그레이션 적용 → Mock 9개 밈 시드 → signup/login/me/memes/scraps API + 에러 케이스(401/409)까지 curl로 실동작 확인 완료. 테스트 계정은 정리해둠.
+- **중요 발견 1**: `npm install`도 Prisma처럼 postinstall 스크립트 있는 패키지가 끼면 cmd.exe 스폰이 막혀서 실패할 수 있음 — `--ignore-scripts`로 설치 후 `node node_modules/prisma/build/index.js generate`처럼 직접 실행하면 우회됨.
+- **중요 발견 2(꽤 큼)**: 이 PC방 네트워크는 Postgres 기본 포트(5432)도 막아놔서 표준 TCP로는 DB 접속 자체가 불가능했음(443은 정상). `@neondatabase/serverless` + `@prisma/adapter-neon`으로 HTTP/WebSocket 접속하게 바꿔서 해결 — `prisma migrate dev`는 여전히 이 네트워크에서 안 되므로, 스키마 변경 시 `migrate diff --script`로 SQL만 뽑아서 직접 실행하는 방식을 써야 함. 둘 다 CLAUDE.md/BACKEND.md에 상세히 기록해둠.
 
 ## 진행 중 / 다음에 할 일
-- **다음 세션 최우선 — 사용자가 직접 해야 하는 일: Neon 계정 가입 + 프로젝트 생성**, 연결 문자열을 `server/.env`의 `DATABASE_URL`에 채우기(`server/.env.example` 참고, git에 안 잡히니 이 파일 자체가 없으면 새로 만들어야 함).
-- 그 다음: `node node_modules/prisma/build/index.js migrate dev --name init` → `node prisma/seed.js`(Mock 9개 이관) → `node src/index.js`로 회원가입 등 실제 API 동작 확인.
-- 이후 순서는 [docs/BACKEND.md](BACKEND.md) "다음에 구현할 순서" 5번부터: 프론트 `AuthView`/`memes` 데이터 fetch/스크랩을 실제 API로 교체, 에디터 제보 승인 화면, 배포.
+- **다음 세션 핵심 과제 — [docs/BACKEND.md](BACKEND.md) "다음에 구현할 순서" 4번부터**: 프론트 `AuthView`를 Mock 대신 실제 API 호출(`credentials: "include"`)로 교체하는 것부터 시작. `server/.env`의 `CLIENT_ORIGIN`을 그날 뜬 Vite 포트에 맞출 것.
+- 이어서: `/memes` 데이터 fetch를 정적 import에서 API 호출로 교체, 스크랩을 localStorage에서 서버로 이관, 에디터 제보 승인 화면, 최종 배포(Vercel/Netlify + Render + Neon).
+- 새 PC에서 세션 시작할 땐 `server/.env`가 git에 안 잡히니 `.env.example` 보고 새로 만들어야 함(Neon 연결 문자열은 Neon 대시보드에서 재확인 가능).
 - STRATEGY.md에 남겨둔 작은 논리 틈(2-1의 AI 생성 소스 위계, 2-7의 타깃 불일치)은 급하지 않음 — 여유 있을 때 다듬을 것.
 - 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 백엔드 기본 골격보다 후순위.
 

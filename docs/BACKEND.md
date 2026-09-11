@@ -8,6 +8,10 @@
   완전히 통제하고 싶다는 이유로 이쪽을 선택함.
 - **DB**: PostgreSQL, 호스팅은 **Neon**(서버리스 Postgres) — 무료 티어가 넉넉하고 연결 문자열만
   있으면 바로 붙일 수 있어서 Render/Railway의 무료 Postgres보다 제약이 적음.
+- **DB 접속 방식**: 표준 TCP(5432) 대신 **`@neondatabase/serverless` + `@prisma/adapter-neon`으로
+  HTTP/WebSocket(443) 접속**. 원래는 표준 방식으로 시작했다가, 이 PC방 네트워크가 5432 포트 아웃바운드
+  자체를 막아놓은 걸 발견해서(아래 "왜 이렇게 결정했는지" 참고) 전환함. 다른 네트워크에서도 문제없이
+  동작하고 오히려 서버리스 환경 친화적이라 그대로 유지하기로 함.
 - **ORM**: **Prisma** — 이번이 첫 ORM 사용이라 문서·자료가 가장 풍부한 쪽으로 시작.
 - **인증**: 직접 구현. `bcrypt`로 비밀번호 해싱, `jsonwebtoken`으로 JWT 발급, 세션은 **httpOnly 쿠키**에
   저장(XSS에 더 안전한 쪽 선택).
@@ -26,6 +30,23 @@
 - 프론트/백엔드가 서로 다른 도메인에 배포되므로 **CORS(`credentials: true`) + 쿠키 `sameSite`/`secure`
   설정**에 유의해야 함 — 로컬 개발은 http라 `sameSite: 'lax'`, 배포 후엔 https 교차 도메인이라
   `sameSite: 'none'; secure: true`가 필요함. 환경별 분기 처리를 잊지 말 것.
+- **이 PC방 네트워크가 Postgres 기본 포트(5432) 아웃바운드를 막아놓은 걸 확인함(2026-09-11)** — 같은
+  Neon 호스트의 443(HTTPS/WSS)은 정상 연결되는데 5432는 완전히 타임아웃남(`P1001`). 그래서 표준
+  `@prisma/client`(TCP)로는 이 네트워크에서 로컬 개발 자체가 불가능했음. 해결: Neon이 공식 제공하는
+  HTTP/WebSocket 기반 드라이버(`@neondatabase/serverless`)를 Prisma 어댑터(`@prisma/adapter-neon`)로
+  붙여서 443만으로 통신하게 전환 — `src/lib/prisma.js`, `prisma/seed.js` 둘 다 이 방식으로 `PrismaClient`를
+  생성함. 실제로 signup/login/memes/scraps 엔드포인트 전부 이 방식으로 동작 확인됨.
+  - 부작용 하나: **`prisma migrate dev`/`deploy` 명령어 자체는 여전히 안 됨** — CLI의 마이그레이션
+    엔진은 어댑터를 안 타고 자체적으로 TCP 접속을 시도하기 때문. 그래서 초기 스키마는
+    `prisma migrate diff --from-empty --to-schema-datamodel ... --script`로 SQL만 오프라인으로
+    생성(이건 DB 연결이 필요 없음)한 뒤, `@neondatabase/serverless`의 `Pool`로 그 SQL을 직접 실행하는
+    식으로 적용했음(`prisma/migrations/20260911140000_init/migration.sql`). **`_prisma_migrations`
+    이력 테이블엔 이 마이그레이션이 기록 안 돼 있음** — 5432가 뚫리는 네트워크(집 등)에서 작업할 기회가
+    있으면 `prisma migrate resolve --applied 20260911140000_init`로 한 번 동기화해줄 것. 앞으로 스키마를
+    바꿀 때도 이 네트워크에서는 같은 방식(diff → 직접 실행)을 반복해야 함.
+  - 설치된 `@prisma/adapter-neon`(7.10.0)이 `@prisma/client`/`prisma`(6.19.3)보다 메이저 버전이 높은
+    상태로 섞여 있음 — 실제 쿼리는 정상 동작 확인했지만, 나중에 Prisma를 업그레이드할 때 이 버전 조합을
+    다시 점검할 것.
 
 ## 데이터 모델 초안 (확정 아님, 구현 시 다시 다듬을 것)
 - `memes` — 기존 `MEMES`([src/data/memes.js](../src/data/memes.js)) 필드 대부분을 컬럼화. 검색/필터/정렬에
@@ -55,21 +76,29 @@
   `/scraps`(CRUD), `/submissions`(등록/조회/승인·반려) 라우트 코드, Mock 데이터 이관용 시드 스크립트
   (`prisma/seed.js`). `node src/index.js`로 기동 확인, `/health` 응답 확인, 에러 핸들러가 프로덕션에서
   내부 에러 메시지를 안 새게 처리 확인.
-- **막힘/대기 중**: 아직 Neon 프로젝트가 없어서 `server/.env`의 `DATABASE_URL`이 placeholder 상태 —
-  실제 DB 연결·마이그레이션·시드·회원가입 API 동작 확인은 Neon 프로젝트 생성 후에 가능.
-- **중요 발견**: `npm install`도 Prisma처럼 postinstall 스크립트가 있는 패키지가 끼면 cmd.exe 스폰
+- **Neon 프로젝트 생성 완료(사용자), DB 연동 끝까지 검증 완료**: 5432 포트 차단 발견 → Neon HTTP/WebSocket
+  어댑터로 전환(위 "왜 이렇게 결정했는지" 참고) → 초기 스키마 마이그레이션 SQL 생성 및 직접 적용(테이블
+  6개 생성 확인: users/memes/meme_ranks/verifications/scraps/submissions) → `node prisma/seed.js`로 Mock
+  9개 밈 이관 완료 → 서버 기동 후 signup/login/me/memes 목록/상세/scraps 추가·조회/에러 케이스(미인증
+  401, 중복 가입 409, 잘못된 비밀번호 401)까지 curl로 전부 실제 동작 확인. 테스트로 만든 계정은 삭제해둠.
+- **중요 발견 1**: `npm install`도 Prisma처럼 postinstall 스크립트가 있는 패키지가 끼면 cmd.exe 스폰
   차단에 걸려 `EPERM: spawn` 에러로 실패할 수 있음(CLAUDE.md에 있던 "npm install은 안전하다"는 프론트
-  의존성 한정 얘기였음). `npm install --ignore-scripts`로 설치하고, `prisma generate`/`migrate` 같은
-  건 `node node_modules/prisma/build/index.js <command>`로 직접 실행하면 우회됨 — 실제로 `generate`는
-  이 방식으로 정상 동작 확인함. 자세한 내용은 [CLAUDE.md](../CLAUDE.md)의 "PC방 컴퓨터" 항목 참고.
+  의존성 한정 얘기였음). `npm install --ignore-scripts`로 설치하고, `prisma generate` 같은 건
+  `node node_modules/prisma/build/index.js <command>`로 직접 실행하면 우회됨.
+- **중요 발견 2**: 이 PC방 네트워크는 5432 포트도 막아놔서 표준 Postgres 접속 자체가 안 됨. Neon
+  어댑터로 전환해서 해결(위 참고).
 
 ## 다음에 구현할 순서
-1. ~~`server/` 디렉토리 세팅(Express 기본 골격)~~ 완료
-2. **Neon 프로젝트 생성 (사용자가 직접 — 계정 필요)** → `server/.env`의 `DATABASE_URL` 채우기
-3. `node node_modules/prisma/build/index.js migrate dev --name init`으로 첫 마이그레이션 적용
-4. `node prisma/seed.js`로 기존 Mock 9개 밈 이관, `node src/index.js`로 실제 API 동작(회원가입 등) 확인
-5. 프론트 `AuthView`를 Mock 대신 실제 API 호출(`fetch(..., { credentials: "include" })`)로 교체
-6. `/memes` API로 프론트 데이터 fetch를 정적 import에서 교체
-7. 스크랩 API 프론트 연동 (localStorage → 서버)
-8. role/제보 큐(`submissions`) 승인 화면 구현
-9. 배포: 프론트(Vercel/Netlify) + 백엔드(Render) + DB(Neon), CORS/쿠키 환경별 설정 마무리
+1. ~~`server/` 디렉토리 세팅~~ 완료
+2. ~~Neon 프로젝트 생성 + `DATABASE_URL` 연결~~ 완료
+3. ~~초기 마이그레이션 적용 + Mock 데이터 시드 + API 전체 동작 확인~~ 완료
+4. **프론트 `AuthView`를 Mock 대신 실제 API 호출로 교체** — `fetch(url, { credentials: "include" })`로
+   쿠키가 오가게 할 것. 프론트 개발 서버(Vite, 5173/5175/5176 등 상황에 따라 다름)와 백엔드(4000)가
+   다른 오리진이므로 `server/.env`의 `CLIENT_ORIGIN`을 실제 뜬 포트에 맞춰줄 것.
+5. `/memes` API로 프론트 데이터 fetch를 정적 import에서 교체 (`src/data/memes.js`의 `MEMES` 직접 참조를
+   걷어내는 작업 — `memeById` 등 헬퍼를 쓰는 곳 전부 영향받음)
+6. 스크랩 API 프론트 연동 (localStorage → 서버, `useAppState` 훅 수정 필요)
+7. role/제보 큐(`submissions`) 승인 화면 구현 — 에디터 role을 가진 계정을 어떻게 만들지도 같이 정할 것
+   (당장은 DB에서 직접 role 컬럼 업데이트하는 정도로 충분, 관리 화면은 나중에)
+8. 배포: 프론트(Vercel/Netlify) + 백엔드(Render) + DB(Neon), CORS/쿠키 환경별 설정 마무리. 배포된
+   백엔드는 일반 네트워크에서도 Neon 어댑터로 잘 동작하는지 재확인.
