@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { MemeCard } from "../components/MemeCard";
 import { PillTabs } from "../components/PillTabs";
-import { CATEGORIES, MEMES } from "../data/memes";
+import { CATEGORIES } from "../data/memes";
 
-export function DictionaryView({ setView }) {
+export function DictionaryView({ setView, memes }) {
   const [sort, setSort] = useState("popular");
   const [cat, setCat] = useState("전체");
   const [q, setQ] = useState("");
 
-  let list = MEMES.filter((m) => (cat === "전체" || m.categories.includes(cat)) && m.name.includes(q.trim()));
+  let list = memes.filter((m) => (cat === "전체" || m.categories.includes(cat)) && m.name.includes(q.trim()));
   if (sort === "popular") list = [...list].sort((a, b) => b.popularity.buzz - a.popularity.buzz);
   if (sort === "recent") list = [...list].sort((a, b) => (a.rank.daily.r ?? 999) - (b.rank.daily.r ?? 999));
   if (sort === "alpha") list = [...list].sort((a, b) => a.name.localeCompare(b.name, "ko"));

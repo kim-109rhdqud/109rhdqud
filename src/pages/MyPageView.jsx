@@ -1,11 +1,11 @@
 import { ChevronRight } from "lucide-react";
 import { MemeCard } from "../components/MemeCard";
-import { CATEGORIES, memeById } from "../data/memes";
+import { CATEGORIES } from "../data/memes";
 import { rankList } from "../data/rank";
 
 const SCRAP_PREVIEW_COUNT = 6;
 
-export function MyPageView({ user, scraps, recentlyViewed, setView }) {
+export function MyPageView({ user, scraps, recentlyViewed, setView, memes, memeById }) {
   if (!user) {
     return (
       <div className="max-w-md mx-auto px-5 py-20 text-center">
@@ -19,7 +19,7 @@ export function MyPageView({ user, scraps, recentlyViewed, setView }) {
 
   const scrapMemes = scraps.map(memeById).filter(Boolean);
   const recentMemes = recentlyViewed.map(memeById).filter(Boolean);
-  const interestedTrends = rankList("weekly").slice(0, 3);
+  const interestedTrends = rankList(memes, "weekly").slice(0, 3);
   const folders = CATEGORIES.map((c) => ({ cat: c, items: scrapMemes.filter((m) => m.categories.includes(c)) })).filter(
     (f) => f.items.length > 0
   );

@@ -1,8 +1,6 @@
 import { Heart } from "lucide-react";
 import { MemeCard } from "../components/MemeCard";
-import { memeById } from "../data/memes";
-
-export function ScrapsView({ user, scraps, toggleScrap, setView }) {
+export function ScrapsView({ user, scraps, toggleScrap, setView, memeById }) {
   if (!user) {
     return (
       <div className="max-w-md mx-auto px-5 py-20 text-center">

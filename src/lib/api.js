@@ -53,3 +53,47 @@ export async function me() {
     return null;
   }
 }
+
+// 서버의 Meme 모델(popularity가 buzz/search/usage/trend로 평탄화, rank가 MemeRank[] 배열)을
+// 프론트가 원래 쓰던 src/data/memes.js의 Mock 데이터 형태(popularity 객체, rank가 기간별 키 객체)로 맞춰줌.
+// 이 변환 덕분에 페이지 컴포넌트들은 데이터 출처가 정적 import든 API든 신경 안 써도 됨.
+function normalizeMeme(m) {
+  return {
+    ...m,
+    popularity: { buzz: m.buzz, search: m.search, usage: m.usage, trend: m.trend },
+    rank: Object.fromEntries((m.ranks ?? []).map((r) => [r.period, { r: r.rank, ch: r.change, isNew: r.isNew }])),
+    verification: m.verification
+      ? { ...m.verification, reviewedAt: m.verification.reviewedAt?.slice(0, 10) ?? null }
+      : { verified: false, sources: [], changeLog: [] },
+  };
+}
+
+export async function getMemes({ category, q } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (q) params.set("q", q);
+  const qs = params.toString();
+  const memes = await request(`/memes${qs ? `?${qs}` : ""}`);
+  return memes.map(normalizeMeme);
+}
+
+export async function getScraps() {
+  const memes = await request("/scraps");
+  return memes.map(normalizeMeme);
+}
+
+export function getUsers() {
+  return request("/users");
+}
+
+export function updateUserRole(id, role) {
+  return request(`/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) });
+}
+
+export function addScrap(memeId) {
+  return request(`/scraps/${memeId}`, { method: "POST" });
+}
+
+export function removeScrap(memeId) {
+  return request(`/scraps/${memeId}`, { method: "DELETE" });
+}

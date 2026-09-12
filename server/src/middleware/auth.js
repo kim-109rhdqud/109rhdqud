@@ -24,3 +24,10 @@ export function requireEditor(req, res, next) {
   }
   next();
 }
+
+export function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ error: "관리자 권한이 필요해" });
+  }
+  next();
+}

@@ -1,21 +1,20 @@
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
-import { MEMES } from "../data/memes";
 
-export function SearchBar({ initialValue = "", onSearch, size = "large" }) {
+export function SearchBar({ initialValue = "", onSearch, size = "large", memes = [] }) {
   const [value, setValue] = useState(initialValue);
   const [focused, setFocused] = useState(false);
 
   const suggestions = useMemo(() => {
     const q = value.trim();
     if (!q) return [];
-    const matched = MEMES.filter((m) => m.name.includes(q)).slice(0, 3);
+    const matched = memes.filter((m) => m.name.includes(q)).slice(0, 3);
     const out = [];
     matched.forEach((m) => {
       out.push(m.name, `${m.name} 유래`, `${m.name} 관련 영상`);
     });
     return out.slice(0, 6);
-  }, [value]);
+  }, [value, memes]);
 
   const submit = (q) => {
     const query = (q ?? value).trim();

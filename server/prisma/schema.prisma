@@ -42,6 +42,7 @@ model User {
   createdAt    DateTime @default(now())
 
   scraps            Scrap[]
+  recentlyViewed    RecentlyViewed[]
   submissions       Submission[] @relation("SubmittedBy")
   reviewedSubmissions Submission[] @relation("ReviewedBy")
 
@@ -79,6 +80,7 @@ model Meme {
   verification Verification?
   ranks        MemeRank[]
   scraps       Scrap[]
+  recentlyViewed RecentlyViewed[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -127,6 +129,20 @@ model Scrap {
 
   @@unique([userId, memeId])
   @@map("scraps")
+}
+
+// 최근 본 밈. (userId, memeId) 조합당 한 행만 유지하고 볼 때마다 viewedAt만 갱신 —
+// 조회 시 viewedAt 내림차순으로 최근 N개만 가져오면 됨.
+model RecentlyViewed {
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  meme     Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
+  memeId   String
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, memeId])
+  @@map("recently_viewed")
 }
 
 // STRATEGY.md 2-6 "제보 → 에디터 승인 큐" 절충안용 테이블.

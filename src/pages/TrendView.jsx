@@ -12,13 +12,13 @@ const PERIODS = [
   { key: "custom", label: "직접 설정" },
 ];
 
-export function TrendView({ setView }) {
+export function TrendView({ setView, memes }) {
   const [period, setPeriod] = useState("daily");
   const [cat, setCat] = useState("전체");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
-  let list = unifiedRankList(period, customStart, customEnd);
+  let list = unifiedRankList(memes, period, customStart, customEnd);
   if (cat !== "전체") list = list.filter(({ meme }) => meme.categories.includes(cat));
 
   const catOptions = ["전체", ...CATEGORIES.filter((c) => c !== "영상" && c !== "기타")].map((c) => ({

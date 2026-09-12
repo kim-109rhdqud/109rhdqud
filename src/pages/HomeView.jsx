@@ -17,9 +17,9 @@ const RANK_BADGE = [
   "bg-amber-100 text-amber-800",
 ];
 
-export function HomeView({ setView }) {
+export function HomeView({ setView, memes }) {
   const [period, setPeriod] = useState("daily");
-  const list = rankList(period).slice(0, 5);
+  const list = rankList(memes, period).slice(0, 5);
 
   return (
     <div className="max-w-3xl mx-auto px-5">
@@ -38,7 +38,7 @@ export function HomeView({ setView }) {
             흩어진 밈·유행어·상품 트렌드를 한 곳에서, 검증까지 함께.
           </p>
           <div className="mt-9 max-w-xl mx-auto">
-            <SearchBar onSearch={(q) => setView({ name: "search", query: q })} />
+            <SearchBar onSearch={(q) => setView({ name: "search", query: q })} memes={memes} />
           </div>
           <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
             {["두쫀쿠", "야르", "킹받네"].map((k) => (

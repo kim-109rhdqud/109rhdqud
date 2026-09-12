@@ -6,7 +6,7 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
-function publicUser(user) {
+export function publicUser(user) {
   return {
     id: user.id,
     email: user.email,

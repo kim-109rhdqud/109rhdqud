@@ -1,7 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { CategoryTag } from "../components/CategoryTag";
 import { MemeCard } from "../components/MemeCard";
-import { CATEGORIES, MEMES } from "../data/memes";
+import { CATEGORIES } from "../data/memes";
 
 /* 두 문자열이 얼마나 겹치는 글자를 공유하는지로 대략적인 유사도를 매긴다 (Mock 추천용, 형태소 분석 아님). */
 function similarity(a, b) {
@@ -11,20 +11,20 @@ function similarity(a, b) {
   return shared / Math.max(a.length, b.length, 1);
 }
 
-function suggestSimilar(query, count = 4) {
-  return [...MEMES]
+function suggestSimilar(memes, query, count = 4) {
+  return [...memes]
     .map((m) => ({ meme: m, score: similarity(query, m.name) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, count)
     .map((s) => s.meme);
 }
 
-export function SearchResultsView({ query, setView }) {
+export function SearchResultsView({ query, setView, memes }) {
   const q = query.trim();
-  const results = MEMES.filter(
+  const results = memes.filter(
     (m) => m.name.includes(q) || m.keywords.some((k) => k.includes(q)) || m.oneLiner.includes(q)
   );
-  const exact = MEMES.find((m) => m.name === q);
+  const exact = memes.find((m) => m.name === q);
   const grouped = CATEGORIES.map((cat) => ({
     cat,
     items: results.filter((m) => m.categories.includes(cat) && m.id !== exact?.id),
@@ -40,7 +40,7 @@ export function SearchResultsView({ query, setView }) {
           <p className="text-neutral-600 mb-4">아직 밈 사전에 등록되지 않은 것 같아.</p>
           <p className="text-sm text-neutral-400 mb-3">이런 항목은 어때?</p>
           <div className="flex justify-center gap-2 flex-wrap">
-            {suggestSimilar(q).map((m) => (
+            {suggestSimilar(memes, q).map((m) => (
               <button
                 key={m.id}
                 onClick={() => setView({ name: "search", query: m.name })}

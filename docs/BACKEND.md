@@ -42,8 +42,13 @@
     생성(이건 DB 연결이 필요 없음)한 뒤, `@neondatabase/serverless`의 `Pool`로 그 SQL을 직접 실행하는
     식으로 적용했음(`prisma/migrations/20260911140000_init/migration.sql`). **`_prisma_migrations`
     이력 테이블엔 이 마이그레이션이 기록 안 돼 있음** — 5432가 뚫리는 네트워크(집 등)에서 작업할 기회가
-    있으면 `prisma migrate resolve --applied 20260911140000_init`로 한 번 동기화해줄 것. 앞으로 스키마를
-    바꿀 때도 이 네트워크에서는 같은 방식(diff → 직접 실행)을 반복해야 함.
+    있으면 `prisma migrate resolve --applied 20260911140000_init`로 한 번 동기화해줄 것.
+    **주의(2026-09-12 발견)**: `--from-empty`는 테이블이 하나도 없는 최초 마이그레이션에서만 써야 함
+    — 이미 테이블이 있는 상태에서 스키마를 추가/변경할 땐 `--from-migrations prisma/migrations
+    --to-schema-datamodel prisma/schema.prisma --script`로 기존 마이그레이션 이력 기준 증분 SQL만
+    생성해야 함(`--from-empty`를 계속 쓰면 이미 있는 테이블까지 다시 `CREATE TABLE`하려다 충돌함).
+    SQL을 직접 실행하는 스크립트는 매번 새로 짜지 않고 `server/prisma/apply-migration.js`로 고정해서
+    재사용하기로 함(`node prisma/apply-migration.js <migration.sql 경로>`).
   - 설치된 `@prisma/adapter-neon`(7.10.0)이 `@prisma/client`/`prisma`(6.19.3)보다 메이저 버전이 높은
     상태로 섞여 있음 — 실제 쿼리는 정상 동작 확인했지만, 나중에 Prisma를 업그레이드할 때 이 버전 조합을
     다시 점검할 것.
@@ -65,8 +70,10 @@
 - `scraps` — `user_id` + `meme_id` 조인 테이블. 기존 localStorage 스크랩을 대체.
 - `submissions` — [STRATEGY.md](STRATEGY.md) 2-6 "제보 → 에디터 승인 큐" 절충안을 위한 테이블
   (status: `pending` / `approved` / `rejected`, `reviewed_by`, `reviewed_at`).
-- `recently_viewed`는 당장 서버로 옮기지 않고 localStorage에 유지 — 기기 동기화 안 돼도 리스크가
-  낮은 개인화 기능이라 스코프에서 제외.
+- `recently_viewed`(2026-09-12 추가, 아직 마이그레이션 미적용) — `(userId, memeId)` 조합당 한 행,
+  볼 때마다 `viewedAt`만 갱신(upsert)하고 조회 시 내림차순 최근 5개만 가져옴. 처음엔 낮은 우선순위라
+  localStorage 유지로 남겨뒀었는데, 2026-09-12에 나머지 미완성 기능들과 함께 서버 이관하기로 범위에
+  다시 포함시킴.
 
 ## API 엔드포인트 (구현 완료, 실제 코드 기준)
 - `POST /auth/signup`(username/password/nickname/email/realName/birthDate/phone 전부 필수),
@@ -77,8 +84,13 @@
 - `POST /submissions`(제보), `GET /submissions`(에디터는 전체 큐, 일반 유저는 자기 것만),
   `PATCH /submissions/:id`(승인/반려, 에디터 전용)
 - `PATCH /memes/:id/verification`(인증마크 갱신, 에디터 전용)
-- role 체크는 `requireAuth`(JWT 검증) 다음에 `requireEditor` 미들웨어를 붙이는 식으로 처리
+- `GET /users`(admin 전용, 목록 — PII 최소화해서 id/username/nickname/email/role만),
+  `PATCH /users/:id/role`(admin 전용, 역할 변경) — 2026-09-12 신규
+- role 체크는 `requireAuth`(JWT 검증) 다음에 `requireEditor`/`requireAdmin` 미들웨어를 붙이는 식으로 처리
   (`server/src/middleware/auth.js`)
+- `server/src/routes/recentlyViewed.js`: 작성만 돼 있고 **아직 `index.js`에 마운트 안 됨** + 대응하는
+  `RecentlyViewed` 모델도 스키마엔 추가됐지만 마이그레이션 미적용 — 죽은 코드 상태([docs/PROGRESS.md](PROGRESS.md)
+  "진행 중" 참고).
 
 ## 진행 상황 (2026-09-11)
 - **완료**: `server/` 스캐폴드(Express 골격, `src/lib`, `src/middleware`, `src/routes`), Prisma 스키마
@@ -120,17 +132,19 @@
 1. ~~`server/` 디렉토리 세팅~~ 완료
 2. ~~Neon 프로젝트 생성 + `DATABASE_URL` 연결~~ 완료
 3. ~~초기 마이그레이션 적용 + Mock 데이터 시드 + API 전체 동작 확인~~ 완료
-4. ~~프론트 `AuthView`를 Mock 대신 실제 API 호출로 교체~~ 완료 (아래 "진행 상황" 참고)
-5. **`/memes` API로 프론트 데이터 fetch를 정적 import에서 교체** — `src/data/memes.js`의 `MEMES`/`memeById`를
-   직접 참조하는 페이지(HomeView, SearchResultsView, DetailView, TrendView, DictionaryView, ArchiveView 등
-   대부분)가 전부 영향받는 큰 작업. 한 번에 다 바꾸기보다 페이지 단위로 하나씩 API 연동 + 로딩/에러
-   상태 추가하는 식으로 진행하는 게 나을 듯.
-6. 스크랩 API 프론트 연동 (localStorage → 서버, `useAppState` 훅 수정 필요) — 로그인 안 한 상태의
-   스크랩은 어떻게 할지도 정할 것(현재는 로그인 안 해도 로컬에 스크랩 가능한 구조라, 서버 이전 시
-   비로그인 스크랩을 막을지 게스트 스크랩을 별도로 둘지 결정 필요).
-7. role/제보 큐(`submissions`) 승인 화면 구현 — 에디터 role을 가진 계정을 어떻게 만들지도 같이 정할 것
-   (당장은 DB에서 직접 role 컬럼 업데이트하는 정도로 충분, 관리 화면은 나중에). **`/submissions`,
-   `/memes/:id/verification` 라우트 코드는 이미 있지만 아직 curl로도 한 번도 안 돌려봄** — 화면
-   만들기 전에 API 자체부터 검증할 것(2026-09-11 문서 점검 중 발견).
-8. 배포: 프론트(Vercel/Netlify) + 백엔드(Render) + DB(Neon), CORS/쿠키 환경별 설정 마무리. 배포된
-   백엔드는 일반 네트워크에서도 Neon 어댑터로 잘 동작하는지 재확인.
+4. ~~프론트 `AuthView`를 Mock 대신 실제 API 호출로 교체~~ 완료
+5. ~~`/memes` API로 프론트 데이터 fetch를 정적 import에서 교체~~ 완료 (2026-09-12)
+6. ~~스크랩 API 프론트 연동~~ 완료 (2026-09-12) — 비로그인 스크랩은 로그인 유도로 확정, 게스트 스크랩 없음
+7. ~~에디터 role 관리~~ 완료 (2026-09-12) — `GET/PATCH /users`, `AdminUsersView`. 최초 admin
+   부트스트랩은 여전히 DB 직접 수정 필요(그 이후는 화면으로 승격 가능).
+8. **최근 본 밈 서버 이관** — 스키마·라우트 코드는 작성해뒀지만 마이그레이션 미적용 + 마운트 안 됨
+   (자세한 내용은 [docs/PROGRESS.md](PROGRESS.md) "진행 중" 참고).
+9. **인증마크 갱신 UI + `/submissions` 제보 UI** — 두 라우트 다 코드는 있지만 curl 검증 전, UI도
+   아직 없음. UI 만들기 전에 curl로 먼저 검증할 것.
+10. **커스텀 기간 트렌드를 실제 데이터로** — 새 `MemeDailyStat` 모델 + 조회/검색 이벤트 로깅 API
+    필요(AI 기반 외부 데이터 수집은 안 함 — 앱 자체 실사용 신호만 사용).
+11. **실제 URL 라우팅** — 새 라이브러리 추가 없이 `history.pushState`/`popstate`를 기존 `view` state에
+    얹는 방식으로 결정(9번까지 끝난 뒤, view 이름이 다 나온 다음에 진행).
+12. 배포: 프론트(Vercel/Netlify) + 백엔드(Render) + DB(Neon), CORS/쿠키 환경별 설정은 이미 코드에
+    구현돼 있음(`server/src/lib/jwt.js`/`index.js`) — 환경변수 설정 + SPA fallback 설정이 메인.
+    배포된 백엔드는 일반 네트워크에서도 Neon 어댑터로 잘 동작하는지 재확인.

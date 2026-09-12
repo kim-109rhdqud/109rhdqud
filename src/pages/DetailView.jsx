@@ -5,9 +5,9 @@ import { MetricBar } from "../components/MetricBar";
 import { Sparkline } from "../components/Sparkline";
 import { SectionHeading } from "../components/SectionHeading";
 import { VerificationBadge, VerificationSection } from "../components/VerificationBadge";
-import { CATEGORIES, memeById } from "../data/memes";
+import { CATEGORIES } from "../data/memes";
 
-export function DetailView({ id, setView, user, scraps, toggleScrap }) {
+export function DetailView({ id, setView, user, scraps, toggleScrap, memeById }) {
   const meme = memeById(id);
   if (!meme) return <div className="max-w-3xl mx-auto px-5 py-20 text-center text-neutral-500">밈을 찾을 수 없어.</div>;
 

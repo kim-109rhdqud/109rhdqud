@@ -1,21 +1,19 @@
 import { useState } from "react";
 import { MockTag } from "../components/MockTag";
 import { PillTabs } from "../components/PillTabs";
-import { MEMES } from "../data/memes";
-
 const ARCHIVE_YEARS = Array.from({ length: 2025 - 2000 + 1 }, (_, i) => 2000 + i);
 const YEAR_OPTIONS = ARCHIVE_YEARS.map((y) => ({ key: y, label: String(y) }));
 
-function monthHighlight(year, month) {
+function monthHighlight(memes, year, month) {
   const prefix = `${year}.${String(month).padStart(2, "0")}`;
-  for (const m of MEMES) {
+  for (const m of memes) {
     const hit = m.timeline.find((t) => t.date === prefix);
     if (hit) return { meme: m, text: hit.text };
   }
   return null;
 }
 
-export function ArchiveView({ setView }) {
+export function ArchiveView({ setView, memes }) {
   const [year, setYear] = useState(2025);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -34,7 +32,7 @@ export function ArchiveView({ setView }) {
 
       <div className="surface-card divide-y divide-neutral-100 overflow-hidden">
         {months.map((m) => {
-          const hit = monthHighlight(year, m);
+          const hit = monthHighlight(memes, year, m);
           return (
             <div key={m} className="py-4 px-5">
               <div className="text-xs text-neutral-400 mb-1">

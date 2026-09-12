@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadStored, saveStored } from "../lib/storage";
-import { logout as apiLogout, me } from "../lib/api";
+import { logout as apiLogout, me, getMemes, getScraps, addScrap, removeScrap } from "../lib/api";
 
 export function useAppState() {
   const [view, setViewRaw] = useState({ name: "home" });
@@ -8,7 +8,10 @@ export function useAppState() {
   // 새로고침 시 /auth/me로 서버에 물어봐서 로그인 여부를 확인함(아래 useEffect).
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [scraps, setScraps] = useState(() => loadStored("scraps", []));
+  const [memes, setMemes] = useState([]);
+  const [memesLoading, setMemesLoading] = useState(true);
+  // 스크랩은 이제 서버(DB)가 정본 — 로그인 필요, localStorage엔 더 이상 안 남김.
+  const [scraps, setScraps] = useState([]);
   const [recentlyViewed, setRecentlyViewed] = useState(() => loadStored("recentlyViewed", []));
 
   useEffect(() => {
@@ -18,7 +21,18 @@ export function useAppState() {
     });
   }, []);
 
-  useEffect(() => saveStored("scraps", scraps), [scraps]);
+  useEffect(() => {
+    getMemes()
+      .then(setMemes)
+      .catch(() => setMemes([]))
+      .finally(() => setMemesLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const ids = user ? getScraps().then((list) => list.map((m) => m.id)) : Promise.resolve([]);
+    ids.then(setScraps).catch(() => setScraps([]));
+  }, [user]);
+
   useEffect(() => saveStored("recentlyViewed", recentlyViewed), [recentlyViewed]);
 
   const setView = (v) => {
@@ -29,8 +43,16 @@ export function useAppState() {
     window.scrollTo?.(0, 0);
   };
 
+  const memeById = (id) => memes.find((m) => m.id === id);
+
+  // 낙관적으로 먼저 바꾸고, 서버 요청이 실패하면(네트워크 오류 등) 원래 상태로 되돌림.
   const toggleScrap = (id) => {
-    setScraps((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    const wasScrapped = scraps.includes(id);
+    setScraps((prev) => (wasScrapped ? prev.filter((x) => x !== id) : [...prev, id]));
+    const request = wasScrapped ? removeScrap(id) : addScrap(id);
+    request.catch(() => {
+      setScraps((prev) => (wasScrapped ? [...prev, id] : prev.filter((x) => x !== id)));
+    });
   };
 
   const logout = () => {
@@ -40,5 +62,18 @@ export function useAppState() {
     });
   };
 
-  return { view, setView, user, setUser, authChecked, scraps, toggleScrap, recentlyViewed, logout };
+  return {
+    view,
+    setView,
+    user,
+    setUser,
+    authChecked,
+    memes,
+    memesLoading,
+    memeById,
+    scraps,
+    toggleScrap,
+    recentlyViewed,
+    logout,
+  };
 }

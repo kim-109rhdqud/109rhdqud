@@ -1,6 +1,6 @@
 # 유행도감 (Trend Encyclopedia)
 
-요즘 유행하는 밈·유행어·상품·인물·챌린지를 검색하고 둘러볼 수 있는 React 웹앱. 프로토타입 단계에서 실제 배포 단계로 전환 중 — 로그인/회원가입은 실제 백엔드에 연동됐지만, 밈 데이터 자체와 스크랩/최근 본 밈은 아직 Mock/localStorage임(아래 "현재 아키텍처" 참고).
+요즘 유행하는 밈·유행어·상품·인물·챌린지를 검색하고 둘러볼 수 있는 React 웹앱. 프로토타입 단계에서 실제 배포 단계로 전환 중 — 로그인/회원가입, 밈 데이터 조회, 스크랩, 사용자 역할 관리는 실제 백엔드에 연동됐지만, 최근 본 밈·제보(밈 제안)·인증마크 갱신 UI·URL 라우팅·실제 트렌드 애널리틱스·배포는 아직임(아래 "현재 아키텍처", [docs/PROGRESS.md](docs/PROGRESS.md) 참고).
 
 ## 기술 스택
 - 프론트: React 19 + Vite, Tailwind CSS 4 (`@tailwindcss/vite` 플러그인), lucide-react(아이콘), oxlint(린트, TypeScript 아님 — 순수 JSX)
@@ -19,22 +19,23 @@
 - `node prisma/seed.js` — 기존 Mock 데이터(`src/data/memes.js`)를 DB로 이관하는 시드 스크립트
 - 최초 실행 전 `server/.env.example`을 `server/.env`로 복사하고 값 채울 것 (git에 안 잡힘 — PC 바뀔 때마다 새로 만들어야 함)
 - **`prisma migrate dev`/`deploy`는 이 네트워크(5432 포트 차단)에서 안 됨** — 마이그레이션 엔진이 어댑터를 안 타고 자체적으로 TCP 접속을 시도하기 때문. 스키마를 바꿨으면 대신:
-  1. `node node_modules/prisma/build/index.js migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script` (DB 연결 없이 SQL만 생성)
-  2. 그 SQL을 `@neondatabase/serverless`의 `Pool`로 직접 실행 (443 포트, docs/BACKEND.md에 실제 사용한 스크립트 예시 있음)
+  1. **최초 스키마(테이블이 하나도 없는 상태)일 때만** `--from-empty` 사용: `node node_modules/prisma/build/index.js migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`. **이미 테이블이 있는 상태에서 스키마를 추가/변경할 때는 `--from-empty` 쓰면 안 됨** — 기존 테이블까지 처음부터 다시 `CREATE TABLE`하는 SQL이 나와서 이미 있는 테이블과 충돌함(2026-09-12 발견). 대신 `--from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script`로 기존 마이그레이션 이력을 기준으로 증분 SQL만 생성할 것(DB 연결 없이 오프라인으로 가능).
+  2. 그 SQL을 `server/prisma/apply-migration.js`로 직접 실행 (443 포트, `@neondatabase/serverless`의 `Pool` 사용) — `node prisma/apply-migration.js prisma/migrations/<타임스탬프>_<이름>/migration.sql`
   3. `_prisma_migrations` 이력 테이블엔 안 남으므로, 5432가 뚫리는 네트워크(집 등)에서 작업할 기회가 있으면 그때 `prisma migrate resolve --applied <migration명>`으로 한 번 동기화해줄 것.
 
 ## 현재 아키텍처
 - [src/App.jsx](src/App.jsx)는 얇은 셸(shell)만 담당 — `useAppState` 훅으로 상태를 받아 NavBar와 현재 view에 맞는 페이지를 렌더링.
-- `src/data/` — `memes.js`(MEMES, CATEGORIES, memeById), `rank.js`(기간별 랭킹 계산)
-- `src/lib/storage.js` — localStorage 안전 read/write 래퍼
-- `src/lib/api.js` — 백엔드(`server/`) API 호출용 fetch 래퍼. `credentials: "include"` 필수(httpOnly 쿠키 인증). `VITE_API_URL` 환경변수로 백엔드 주소 지정(루트 `.env`, `.env.example` 참고)
-- `src/hooks/useAppState.js` — view/user/scraps/recentlyViewed 상태 관리. `scraps`/`recentlyViewed`만 localStorage에 영속화되고, `user`는 더 이상 localStorage에 안 남김 — 앱 로드 시 `GET /auth/me`로 서버 세션을 확인해서 채움.
+- `src/data/memes.js` — `CATEGORIES`(프론트가 여전히 정적 import로 씀, 고정 taxonomy라 DB 이관 대상 아님)와 `MEMES`/`memeById`(더 이상 프론트가 안 씀 — `server/prisma/seed.js`가 DB 시드용으로만 import함. 지우면 안 됨, 재시드할 방법이 없어짐). `src/data/rank.js`는 `memes` 배열을 인자로 받는 순수 함수(`rankList`/`unifiedRankList`)로 바뀜 — 더 이상 MEMES를 직접 import 안 함.
+- `src/lib/storage.js` — localStorage 안전 read/write 래퍼. 지금은 `recentlyViewed`만 여기 씀.
+- `src/lib/api.js` — 백엔드(`server/`) API 호출용 fetch 래퍼. `credentials: "include"` 필수(httpOnly 쿠키 인증). `VITE_API_URL` 환경변수로 백엔드 주소 지정(루트 `.env`, `.env.example` 참고). `getMemes`/`getScraps`/`addScrap`/`removeScrap`/`getUsers`/`updateUserRole` 등 보유. `normalizeMeme()`가 서버 응답 모양(평탄화된 buzz/search/usage/trend, ranks 배열)을 프론트가 쓰는 형태(`popularity` 객체, `rank`가 기간별 키 객체)로 맞춰줌 — 밈 관련 API를 새로 추가할 때 이 정규화 패턴을 재사용할 것.
+- `src/hooks/useAppState.js` — view/user/memes/scraps/recentlyViewed 상태 관리. `memes`는 앱 로드 시 `GET /memes`로 한 번 fetch(`memeById`는 이 배열에서 찾는 파생 함수). `scraps`는 로그인 상태일 때만 `GET /scraps`로 채워지고 서버가 정본(비로그인 스크랩은 아예 불가 — 로그인 화면으로 유도). `recentlyViewed`만 아직 `localStorage`에 영속화됨. `user`도 localStorage에 안 남기고 앱 로드 시 `GET /auth/me`로 채움.
 - `src/components/` — 여러 페이지에서 재사용되는 작은 UI 조각(Logo, NavBar, SearchBar, MemeCard, CategoryTag, MockTag, RankChange, MetricBar, Sparkline, SectionHeading, PillTabs, VerificationBadge 등)
-- `src/pages/` — 화면 단위 뷰 컴포넌트 (HomeView, SearchResultsView, DetailView, TrendView, DictionaryView, ArchiveView, AuthView, MyPageView, ScrapsView, EditProfileView)
-- 라우팅 라이브러리 없이 `view` state 객체(`{ name: "home" | "search" | "detail" | "trend" | "dictionary" | "archive" | "auth" | "mypage" | "scraps", ...params }`)로 화면 전환. 브라우저 뒤로가기/URL 공유는 동작하지 않음.
+- `src/pages/` — 화면 단위 뷰 컴포넌트 (HomeView, SearchResultsView, DetailView, TrendView, DictionaryView, ArchiveView, AuthView, MyPageView, ScrapsView, EditProfileView, AdminUsersView)
+- 라우팅 라이브러리 없이 `view` state 객체(`{ name: "home" | "search" | "detail" | "trend" | "dictionary" | "archive" | "auth" | "mypage" | "scraps" | "admin", ...params }`)로 화면 전환. 브라우저 뒤로가기/URL 공유는 동작하지 않음 — 다음 작업 예정([docs/PROGRESS.md](docs/PROGRESS.md) 참고).
 - **로그인/회원가입은 2026-09-11부터 실제 백엔드(`server/`)에 연동됨** — `src/lib/api.js`가 `/auth/*` API를 호출하고, 세션은 서버가 발급하는 httpOnly 쿠키로 관리(`useAppState`가 앱 로드 시 `GET /auth/me`로 로그인 여부 확인). 더 이상 Mock 아님. **로그인은 이메일이 아니라 아이디(username) 기준**이고, 회원가입 시 닉네임/이메일/아이디/실명/생년월일/휴대전화번호를 전부 입력받음(`src/pages/AuthView.jsx`). 마이페이지에서 "내 정보 수정"(`src/pages/EditProfileView.jsx`)으로 닉네임/이메일/실명/휴대전화번호 수정 가능 — 아이디·생년월일은 불변.
-- 스크랩(찜)과 최근 본 밈은 아직 `localStorage`에 영속화됨(새로고침해도 유지, 기기 간 동기화는 안 됨) — 밈 데이터 자체도 아직 `src/data/memes.js` 정적 import로 읽는 중. 둘 다 백엔드 API로 옮기는 작업이 남아있음 — [docs/BACKEND.md](docs/BACKEND.md) "다음에 구현할 순서" 참고.
-- `server/` — 백엔드 API(Express). `src/index.js`(엔트리), `src/routes/`(auth/memes/scraps/submissions), `src/middleware/auth.js`(JWT 검증 + role 체크), `prisma/schema.prisma`(스키마), `prisma/seed.js`(Mock 데이터 이관). 프론트와 완전히 독립된 npm 패키지(모노레포 — 별도 레포 아님).
+- **밈 데이터(2026-09-12)와 스크랩(2026-09-12)은 실제 백엔드 API로 연동 완료.** 밈 데이터는 `GET /memes`(목록), 스크랩은 로그인 필요 `GET/POST/DELETE /scraps`. 최근 본 밈만 아직 `localStorage` 전용(기기 간 동기화 안 됨) — 서버 이관은 스키마(`RecentlyViewed` 모델)만 추가돼 있고 마이그레이션 미적용·라우트 미연결 상태([docs/PROGRESS.md](docs/PROGRESS.md) "진행 중" 참고).
+- **사용자 역할 관리(2026-09-12) 추가** — admin 계정이 `GET /users`(목록)·`PATCH /users/:id/role`(역할 변경)로 다른 유저를 editor/admin으로 승격 가능. 프론트는 [AdminUsersView](src/pages/AdminUsersView.jsx)(관리자만 접근, 네비 드롭다운의 "사용자 관리"). 최초 admin 계정은 여전히 DB 직접 수정으로 부트스트랩해야 함(그 다음부터는 이 화면으로 관리 가능).
+- `server/` — 백엔드 API(Express). `src/index.js`(엔트리), `src/routes/`(auth/memes/scraps/submissions/users, `recentlyViewed.js`는 작성만 돼 있고 아직 `index.js`에 마운트 안 됨), `src/middleware/auth.js`(JWT 검증 + role 체크, `requireAuth`/`requireEditor`/`requireAdmin`), `prisma/schema.prisma`(스키마), `prisma/seed.js`(Mock 데이터 이관), `prisma/apply-migration.js`(마이그레이션 SQL을 Neon Pool로 직접 실행하는 재사용 스크립트). 프론트와 완전히 독립된 npm 패키지(모노레포 — 별도 레포 아님).
 
 ## 디자인 컨벤션
 - **2026-09-11부터 "딱딱한 모노톤" 컨벤션(그림자·둥근 모서리 거의 안 씀)을 폐기하고, 상용 웹 서비스에 가까운 방향으로 전면 리디자인함.** 기반은 여전히 중립 톤(흰색/뉴트럴 그레이)이지만 아래 요소로 화려함·입체감을 더함:
@@ -50,7 +51,7 @@
 - 실제 통계·인물·영상 데이터가 아닌 섹션에는 `<MockTag />`로 "Mock Data" 표시를 붙임(이제 amber 톤 pill 스타일)
 
 ## 데이터
-- `MEMES` 배열이 프론트의 유일한 데이터 소스 (`src/data/memes.js`, `memeById`로 조회). 프론트는 아직 이걸 정적 import로 읽음 — 백엔드 `/memes` API로 교체하는 작업이 남아있음([docs/BACKEND.md](docs/BACKEND.md) 참고). 같은 데이터가 `server/prisma/seed.js`를 통해 실제 DB(`memes` 테이블)에도 이관돼 있지만, 프론트가 아직 그걸 안 씀 — 두 군데를 동시에 손대야 할 상황이면 주의.
+- 밈 데이터는 이제 백엔드 DB(`memes` 테이블)가 정본 — 프론트는 앱 로드 시 `GET /memes`로 한 번 fetch해서 전역 상태(`useAppState`의 `memes`)로 들고 있고, `memeById`도 그 배열에서 찾는 파생 함수임. `src/data/memes.js`의 `MEMES`/`memeById`는 이제 프론트가 안 쓰고 `server/prisma/seed.js`(DB 재시드용) 전용으로만 남아있음 — 지우면 안 됨.
 - 각 밈에 `verification` 필드(`{ verified, sources, copyrightHolder?, reviewedBy?, reviewedAt?, changeLog }`)가 있음 — STRATEGY.md 2-3에서 정한 인증마크 체크리스트를 담음. `<VerificationBadge />`/`<VerificationSection />`이 이 필드를 읽어서 표시.
 - 랭킹은 `period`(daily/weekly/monthly/yearly)별로 `rank` 필드에 미리 정의됨. "직접 설정" 기간은 문자열 해시 기반 결정론적 의사난수로 즉석 생성(`customRankList`) — 실제 데이터 아님.
 

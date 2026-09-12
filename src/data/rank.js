@@ -1,7 +1,5 @@
-import { MEMES } from "./memes";
-
-export function rankList(period) {
-  return MEMES
+export function rankList(memes, period) {
+  return memes
     .filter((m) => m.rank[period])
     .map((m) => ({ meme: m, ...m.rank[period], search: m.popularity.search, buzz: m.popularity.buzz }))
     .sort((a, b) => a.r - b.r);
@@ -17,8 +15,8 @@ function hashSeed(str) {
 function seededValue(seed, min, max) {
   return min + (hashSeed(seed) % (max - min + 1));
 }
-function customRankList(start, end) {
-  const rows = MEMES.map((m) => {
+function customRankList(memes, start, end) {
+  const rows = memes.map((m) => {
     const search = seededValue(`${m.id}-search-${start}-${end}`, 30, 99);
     const buzz = seededValue(`${m.id}-buzz-${start}-${end}`, 20, 95);
     const prevSearch = seededValue(`${m.id}-search-prev-${start}-${end}`, 30, 99);
@@ -32,10 +30,10 @@ function customRankList(start, end) {
     return { ...row, ch: prevRank - row.r, isNew: false };
   });
 }
-export function unifiedRankList(period, customStart, customEnd) {
+export function unifiedRankList(memes, period, customStart, customEnd) {
   if (period === "custom") {
     if (!customStart || !customEnd) return [];
-    return customRankList(customStart, customEnd);
+    return customRankList(memes, customStart, customEnd);
   }
-  return rankList(period);
+  return rankList(memes, period);
 }

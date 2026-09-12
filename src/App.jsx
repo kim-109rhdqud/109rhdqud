@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import { NavBar } from "./components/NavBar";
 import { useAppState } from "./hooks/useAppState";
 import { HomeView } from "./pages/HomeView";
@@ -10,34 +11,68 @@ import { AuthView } from "./pages/AuthView";
 import { MyPageView } from "./pages/MyPageView";
 import { EditProfileView } from "./pages/EditProfileView";
 import { ScrapsView } from "./pages/ScrapsView";
+import { AdminUsersView } from "./pages/AdminUsersView";
 
 export default function App() {
-  const { view, setView, user, setUser, scraps, toggleScrap, recentlyViewed, logout } = useAppState();
+  const {
+    view,
+    setView,
+    user,
+    setUser,
+    memes,
+    memesLoading,
+    memeById,
+    scraps,
+    toggleScrap,
+    recentlyViewed,
+    logout,
+  } = useAppState();
 
   return (
     <div className="font-sans-kr min-h-screen bg-neutral-50 text-neutral-900">
-      <NavBar view={view} setView={setView} user={user} onLogout={logout} />
+      <NavBar view={view} setView={setView} user={user} onLogout={logout} memes={memes} />
 
-      {/* view가 바뀔 때마다 key도 바뀌어서 매번 새로 마운트되고, 그때 page-transition 애니메이션이 자동으로 재생됨.
-          화면이 뚝뚝 끊기듯 바뀌는 느낌을 없애려는 용도(그냥 CSS 애니메이션이라 라이브러리 없이 처리). */}
-      <div key={`${view.name}:${view.id ?? ""}:${view.query ?? ""}`} className="page-transition">
-        {view.name === "home" && <HomeView setView={setView} />}
-        {view.name === "search" && <SearchResultsView query={view.query} setView={setView} />}
-        {view.name === "detail" && (
-          <DetailView id={view.id} setView={setView} user={user} scraps={scraps} toggleScrap={toggleScrap} />
-        )}
-        {view.name === "trend" && <TrendView setView={setView} />}
-        {view.name === "dictionary" && <DictionaryView setView={setView} />}
-        {view.name === "archive" && <ArchiveView setView={setView} />}
-        {view.name === "auth" && <AuthView setView={setView} onAuth={setUser} />}
-        {view.name === "mypage" && (
-          <MyPageView user={user} scraps={scraps} recentlyViewed={recentlyViewed} setView={setView} />
-        )}
-        {view.name === "editProfile" && <EditProfileView user={user} onUpdate={setUser} setView={setView} />}
-        {view.name === "scraps" && (
-          <ScrapsView user={user} scraps={scraps} toggleScrap={toggleScrap} setView={setView} />
-        )}
-      </div>
+      {memesLoading ? (
+        <div className="flex items-center justify-center py-32 text-neutral-400">
+          <Loader2 size={22} className="animate-spin" />
+        </div>
+      ) : (
+        // view가 바뀔 때마다 key도 바뀌어서 매번 새로 마운트되고, 그때 page-transition 애니메이션이 자동으로 재생됨.
+        // 화면이 뚝뚝 끊기듯 바뀌는 느낌을 없애려는 용도(그냥 CSS 애니메이션이라 라이브러리 없이 처리).
+        <div key={`${view.name}:${view.id ?? ""}:${view.query ?? ""}`} className="page-transition">
+          {view.name === "home" && <HomeView setView={setView} memes={memes} />}
+          {view.name === "search" && <SearchResultsView query={view.query} setView={setView} memes={memes} />}
+          {view.name === "detail" && (
+            <DetailView
+              id={view.id}
+              setView={setView}
+              user={user}
+              scraps={scraps}
+              toggleScrap={toggleScrap}
+              memeById={memeById}
+            />
+          )}
+          {view.name === "trend" && <TrendView setView={setView} memes={memes} />}
+          {view.name === "dictionary" && <DictionaryView setView={setView} memes={memes} />}
+          {view.name === "archive" && <ArchiveView setView={setView} memes={memes} />}
+          {view.name === "auth" && <AuthView setView={setView} onAuth={setUser} />}
+          {view.name === "mypage" && (
+            <MyPageView
+              user={user}
+              scraps={scraps}
+              recentlyViewed={recentlyViewed}
+              setView={setView}
+              memes={memes}
+              memeById={memeById}
+            />
+          )}
+          {view.name === "editProfile" && <EditProfileView user={user} onUpdate={setUser} setView={setView} />}
+          {view.name === "scraps" && (
+            <ScrapsView user={user} scraps={scraps} toggleScrap={toggleScrap} setView={setView} memeById={memeById} />
+          )}
+          {view.name === "admin" && <AdminUsersView user={user} />}
+        </div>
+      )}
 
       <footer className="border-t border-neutral-200 mt-16 py-8">
         <div className="max-w-5xl mx-auto px-5 text-xs text-neutral-400">

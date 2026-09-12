@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Heart, LogOut, Search, Settings, UserRound } from "lucide-react";
+import { ChevronDown, Heart, LogOut, Search, Settings, ShieldCheck, UserRound } from "lucide-react";
 import { Logo } from "./Logo";
 import { SearchBar } from "./SearchBar";
 
@@ -61,6 +61,14 @@ function UserMenu({ user, setView, onLogout }) {
           >
             <Settings size={15} className="text-neutral-400" /> 내 정보 수정
           </button>
+          {user.role === "admin" && (
+            <button
+              onMouseDown={() => setView({ name: "admin" })}
+              className="w-full text-left px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+            >
+              <ShieldCheck size={15} className="text-neutral-400" /> 사용자 관리
+            </button>
+          )}
           <div className="h-px bg-neutral-100 my-1" />
           <button
             onMouseDown={onLogout}
@@ -74,7 +82,7 @@ function UserMenu({ user, setView, onLogout }) {
   );
 }
 
-export function NavBar({ view, setView, user, onLogout }) {
+export function NavBar({ view, setView, user, onLogout, memes }) {
   const [navSearch, setNavSearch] = useState(false);
 
   return (
@@ -117,6 +125,7 @@ export function NavBar({ view, setView, user, onLogout }) {
         <div className="max-w-5xl mx-auto px-5 pb-3">
           <SearchBar
             size="small"
+            memes={memes}
             onSearch={(q) => {
               setNavSearch(false);
               setView({ name: "search", query: q });

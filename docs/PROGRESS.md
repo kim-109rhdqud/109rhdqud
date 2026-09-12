@@ -1,6 +1,6 @@
 # 진행 상황
 
-마지막 업데이트: 2026-09-11
+마지막 업데이트: 2026-09-12
 
 ## 완료된 것
 - 기본 뷰 구현: 홈, 검색 결과, 밈 상세, 트렌드(기간별 랭킹), 밈 사전(정렬/필터), 역사(연도별 아카이브), 로그인/회원가입(Mock), 마이페이지, 스크랩 목록(독립 화면)
@@ -28,25 +28,37 @@
 - **전면 디자인 리뉴얼** (사용자 요청: "진짜 상용 웹처럼, 화려하지만 정신없지 않게") — 기존의 딱딱한 흑백 모노톤·무그림자·직각 컨벤션을 버리고, 브랜드 그라데이션(보라→핑크→로즈) 한 가지를 로고/CTA/1위 배지 등 포인트에만 쓰는 방식으로 전면 리디자인. 카드에 그림자·둥근 모서리·hover 인터랙션 추가, 카테고리별 색상 태그, 랭킹 등락 빨강/파랑(국내 차트 관행), 인증마크는 에메랄드 톤으로 브랜드 컬러와 구분, 네비게이션은 글래스모피즘(backdrop-blur). `src/index.css`에 `@layer components`로 재사용 유틸리티(`btn-primary`, `input-field`, `surface-card` 등) 추가하고 모든 컴포넌트·페이지(총 22개 파일)에 일관 적용. README.md도 Vite 스캐폴드 기본 문구에서 실제 프로젝트 설명으로 교체. Tailwind v4에서 커스텀 클래스를 `@apply`로 중첩할 수 없다는 것도 확인(빌드 에러로 발견, 우회함). build/lint 클린.
 - **디자인 후속 다듬기** (사용자 피드백) — 네비게이션의 아바타+로그아웃 아이콘이 뭘 누르는 자리인지 불명확하다는 지적 반영해 "아바타+닉네임+화살표 → 드롭다운(마이페이지/내 정보 수정/로그아웃)" 메뉴로 교체([src/components/NavBar.jsx](../src/components/NavBar.jsx)). 화면 전환이 너무 뚝뚝 끊긴다는 지적도 반영해 전체 화면 전환에 페이드+슬라이드 애니메이션 추가, 로그인/회원가입 성공 시 바로 넘기지 않고 체크마크 확인 화면을 짧게 보여주도록 변경([src/pages/AuthView.jsx](../src/pages/AuthView.jsx)).
 
-## 오늘 세션 마무리 — 프론트 디자인 작업 일단락, 다음은 백엔드로 전환
-오늘 세션에서 프론트 디자인(전면 리뉴얼 + 후속 다듬기)까지 마무리. **다음 세션은 프론트 디자인 대신 백엔드 개발로 복귀** — 사용자와 협의한 우선순위는 아래 참고.
-
-**현재 백엔드 상태 요약** (다음 세션 시작할 때 참고):
-- 완료+검증됨: `/auth/*`(회원가입/로그인/로그아웃/me/정보수정), `/memes`(목록/상세), `/scraps`(추가/삭제/조회) — curl로 실동작 확인함. 프론트는 `/auth/*`만 연동 완료, `/memes`·`/scraps`는 API는 있지만 프론트가 아직 정적 import/localStorage를 씀.
-- API는 있지만 미검증: `/submissions`(제보 등록/조회/승인·반려), `/memes/:id/verification`(인증마크 갱신) — 코드는 있는데 curl 테스트를 아직 안 해봄. 에디터 role 부여 방법도 "DB 직접 수정" 수준이라 실제로 안 써봄.
-- 아예 안 함: 배포(프론트/백엔드 전부 로컬 전용), 제보 승인 화면(프론트 UI 없음).
+## 완료된 것 (2026-09-12 세션 추가)
+- **밈 데이터를 정적 import에서 `GET /memes` API로 완전 교체.** `src/lib/api.js`에 `getMemes`/`getScraps`/`addScrap`/`removeScrap` 추가 + 서버 응답을 기존 Mock 데이터 형태로 맞춰주는 `normalizeMeme()` 정규화 로직 추가. `data/rank.js`와 페이지 9개(HomeView/SearchResultsView/DetailView/TrendView/DictionaryView/ArchiveView/ScrapsView/MyPageView/SearchBar/NavBar)를 정적 import 대신 props로 받도록 리팩터. `CATEGORIES`는 정적 유지(DB 이관 대상 아님), `MEMES`/`memeById`는 이제 `server/prisma/seed.js` 전용(지우면 안 됨).
+- **스크랩(찜)을 localStorage에서 서버로 완전 이관.** 비로그인 스크랩은 로그인 화면으로 유도하기로 확정(하이브리드 대신 이 방식 선택 — 게스트 스크랩 없음). `useAppState`가 로그인 시에만 `GET /scraps`로 채우고, `toggleScrap`은 낙관적 업데이트 후 실패 시 롤백.
+- **검증**: build/lint 클린 + 헤드리스 크롬을 CDP로 직접 조작해서 실제 클릭 시나리오 전부 확인(회원가입→로그인→상세페이지 스크랩→**localStorage를 강제로 지우고 새로고침해도 스크랩 유지**되는 것까지 확인해서 서버 연동 증명). 인증마크 배지도 정상 표시, 콘솔 에러 없음.
+- **사용자 역할 관리(신규) 구현.** `requireAdmin` 미들웨어 추가, `GET /users`(admin 전용, PII 최소화해서 nickname/username/email/role만 반환)·`PATCH /users/:id/role` 신규 라우트. 프론트 [AdminUsersView](../src/pages/AdminUsersView.jsx)(admin만 접근, 네비 드롭다운의 "사용자 관리")에서 유저 목록 보고 역할(user/editor/admin) 바로 변경 가능. 최초 admin 계정(`admin`)은 사용자가 직접 회원가입 후 DB에서 role 컬럼 수동 변경으로 부트스트랩 완료 — curl + 실제 admin 계정으로 헤드리스 브라우저 테스트까지 end-to-end 확인.
+- 코드 리뷰 통과: `GET /users`가 애초엔 실명/생년월일/휴대폰까지 다 내려주고 있었던 것(불필요한 PII 노출)과 `AdminUsersView`의 미처리 promise rejection을 리뷰에서 잡아서 수정함.
+- **설계 검토 완료 — 남은 6개 기능(아래 "진행 중" 참고)의 구현 순서·아키텍처 결정까지 정리해둠.** 라우팅은 새 라이브러리(react-router 등) 대신 기존 `view` state에 `history.pushState`/`popstate`만 얹는 방식으로 결정(이 프로젝트가 지금까지 의존성을 최소로 유지해온 방향과 일치). 커스텀 기간 트렌드는 AI 기반 외부 데이터 수집 없이, 앱 자체 실사용 신호(조회수/검색량)를 매일 스냅샷으로 쌓는 자체 애널리틱스로 대체하기로 함(배포 직후엔 데이터 거의 없다는 점 사용자에게 고지 필요).
 
 ## 진행 중 / 다음에 할 일
-- **다음 세션 우선순위 (사용자 확정): 프론트-백엔드 데이터 연동부터.** [docs/BACKEND.md](BACKEND.md) "다음에 구현할 순서" 5~6번 — `/memes` API로 프론트 데이터 fetch를 정적 import에서 교체(거의 모든 페이지가 영향받는 큰 작업, 페이지 단위로 나눠서 진행 추천), 이어서 스크랩을 localStorage에서 서버로 이관(비로그인 스크랩 처리 방식도 같이 정할 것).
-- 그 다음: 아직 검증 안 한 `/submissions`·`/memes/:id/verification` curl 테스트 + 에디터 role 부여 방법 정리, 제보 승인 화면 구현, 최종 배포(Vercel/Netlify + Render + Neon).
+**사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
+
+1. ~~사용자 역할 관리~~ **완료** (위 참고)
+2. **최근 본 밈 서버 이관** — `RecentlyViewed` Prisma 모델은 schema.prisma에 추가해둠(`server/prisma/schema.prisma`), `server/src/routes/recentlyViewed.js`도 작성해둠. **하지만 마이그레이션 미생성·미적용(테이블 없음) + `server/src/index.js`에 라우트 마운트 안 함 + 프론트(`useAppState.js`)도 아직 연동 안 함 — 즉 지금은 죽은 코드 상태.** 다음 세션에서: `migrate diff --from-migrations`로 SQL 생성 → `node prisma/apply-migration.js <경로>`로 적용 → `index.js`에 `app.use("/recently-viewed", ...)` 추가 → `useAppState`에서 localStorage 대신 로그인 시에만 서버 fetch/기록하도록 교체(스크랩과 동일 패턴, 비로그인 추적은 하지 않음 — `MyPageView`가 어차피 로그인 필수라 이미 도달 불가능한 케이스라 단순화).
+3. **인증마크 갱신 UI** — 백엔드 `PATCH /memes/:id/verification`은 이미 있음(에디터 전용, **curl로도 아직 검증 안 됨 — UI 만들기 전에 먼저 curl로 확인할 것**). `DetailView`에 editor/admin에게만 보이는 수정 폼 추가, `api.js`에 `updateVerification` 추가.
+4. **제보(Submission) UI** — 백엔드 `POST/GET/PATCH /submissions`도 이미 있음(**이것도 curl 미검증**). 제보 폼(이름/카테고리/한줄설명/출처링크 정도로 최소화), 내 제보 목록, 에디터 전용 승인 큐 3개 화면 신규. 승인해도 Meme 레코드 자동 생성은 안 함(STRATEGY.md 2-6 설계 유지 — 에디터가 검수 후 별도 등록).
+5. **실제 트렌드 데이터 (커스텀 기간)** — `rank.js`의 해시 기반 가짜 생성(`customRankList`)을 실제 데이터로 교체. 새 모델 `MemeDailyStat`(memeId+date+views+searches, 이벤트마다 upsert 증가) 추가, `POST /memes/:id/view`·`POST /search-events`(둘 다 비로그인 허용 — 실사용 신호라 익명도 카운트) + `GET /memes/trend/custom` 신규. `TrendView`의 커스텀 기간 분기가 동기 함수에서 비동기 fetch로 구조 자체가 바뀌는 게 이 작업의 핵심 — `rank.js`의 `customRankList`/해시 함수는 삭제. **배포 직후엔 데이터가 거의 비어있음 — UI에 그 점을 고지할 것.**
+6. **실제 URL 라우팅** — 5번(제보)까지 만들고 나서 진행(새 view 이름들이 다 나온 다음에 경로 매핑표를 한 번에 짜는 게 나음). 새 라이브러리 추가 안 하고 `src/lib/routes.js`(viewToPath/pathToView) + `useAppState.js`의 `setView`가 `history.pushState`도 같이 하도록 확장 + `popstate` 리스너 추가. 기존 ~13곳의 `setView(...)` 호출부는 전혀 안 건드려도 됨. 배포 시 SPA fallback(`vercel.json`/`_redirects`) 설정 필요(7번과 연결).
+7. **배포** — 프론트 Vercel/Netlify + 백엔드 Render + Neon(기존). 쿠키 `sameSite`/`secure`와 CORS는 `server/src/lib/jwt.js`/`index.js`에 이미 `NODE_ENV` 분기 처리돼 있어서 코드 변경 불필요, 환경변수 설정과 SPA fallback 설정이 메인.
+
+설계 검토 결과 전문은 이 세션 대화에만 있고 별도 문서화는 안 함 — 다음 세션에서 이어갈 때 위 요약이면 충분할 것.
+
+부가 사항:
 - 새 PC에서 세션 시작할 땐 `server/.env`뿐 아니라 **루트 `.env`도** git에 안 잡히니 `.env.example` 보고 새로 만들어야 함(`VITE_API_URL`, 로컬이면 보통 `http://localhost:4000`).
 - STRATEGY.md에 남겨둔 작은 논리 틈(2-1의 AI 생성 소스 위계, 2-7의 타깃 불일치)은 급하지 않음 — 여유 있을 때 다듬을 것.
-- 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 백엔드 연동보다 후순위.
+- 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 위 순서보다 후순위.
 
-## 알려진 한계 (일부러 미룬 것)
-- 밈 데이터 자체는 아직 프론트에서 `src/data/memes.js` 정적 import로 읽음 — DB엔 이관됐지만 프론트가 아직 API를 안 씀(다음 할 일 참고)
-- 라우팅 라이브러리 없음 — URL 공유, 브라우저 뒤로가기 불가
-- 스크랩/최근 본 밈은 여전히 브라우저별 localStorage에만 저장 — 기기·브라우저 간 동기화 안 됨(로그인 세션은 서버로 이전됨)
+## 알려진 한계
+- 최근 본 밈은 여전히 브라우저별 localStorage에만 저장(위 "진행 중" 2번 참고 — 다음에 서버로 이관 예정, 더 이상 "일부러 미룸"이 아니라 "다음 순번")
+- 라우팅 라이브러리 없음 — URL 공유, 브라우저 뒤로가기 불가(위 "진행 중" 6번에서 해결 예정)
+- 커스텀 기간 트렌드는 가짜 데이터(위 "진행 중" 5번에서 실제 데이터로 교체 예정)
+- 최초 admin 계정 부트스트랩은 여전히 DB 직접 수정 필요(그 이후 승격은 관리 화면으로 가능)
 
 ## 세션 마무리 체크리스트
 - [ ] 이 파일의 "진행 중 / 다음에 할 일" 업데이트
