@@ -1,0 +1,351 @@
+import { useState } from "react";
+import { PlusCircle, Sparkles, Trash2 } from "lucide-react";
+import { createMeme } from "../lib/api";
+import { CATEGORIES } from "../data/memes";
+
+function splitCsv(text) {
+  return text
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+// 타임라인/관련 영상/관련 인물처럼 "행을 추가/삭제하는 목록" UI를 한 군데서 재사용.
+function RowListField({ label, rows, setRows, fields, addLabel }) {
+  const emptyRow = Object.fromEntries(fields.map((f) => [f.key, ""]));
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="block text-xs text-neutral-400">{label}</span>
+        <button
+          type="button"
+          onClick={() => setRows([...rows, emptyRow])}
+          className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1"
+        >
+          <PlusCircle size={13} /> {addLabel}
+        </button>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-xs text-neutral-400">아직 추가된 항목이 없어(선택 사항).</p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((row, i) => (
+            <div key={i} className="flex items-start gap-2 bg-neutral-50 rounded-xl p-2.5">
+              <div className={`flex-1 grid gap-1.5 ${fields.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+                {fields.map((f) => (
+                  <input
+                    key={f.key}
+                    value={row[f.key]}
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[i] = { ...next[i], [f.key]: e.target.value };
+                      setRows(next);
+                    }}
+                    placeholder={f.placeholder}
+                    className="input-field !py-1.5 text-sm"
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setRows(rows.filter((_, idx) => idx !== i))}
+                className="text-neutral-300 hover:text-rose-500 mt-1.5 shrink-0"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill }) {
+  const [id, setId] = useState("");
+  const [name, setName] = useState(prefill?.name ?? "");
+  const [categories, setCategories] = useState(prefill?.category ? [prefill.category] : []);
+  const [oneLiner, setOneLiner] = useState(prefill?.oneLiner ?? "");
+  const [oneLineSummary, setOneLineSummary] = useState("");
+  const [whatIsIt, setWhatIsIt] = useState("");
+  const [whyPopular, setWhyPopular] = useState("");
+  const [howToUse, setHowToUse] = useState("");
+  const [platforms, setPlatforms] = useState("");
+  const [period, setPeriod] = useState("");
+  const [keywords, setKeywords] = useState("");
+  const [registeredAt, setRegisteredAt] = useState(new Date().toISOString().slice(0, 10));
+  const [buzz, setBuzz] = useState(50);
+  const [search, setSearch] = useState(50);
+  const [usage, setUsage] = useState(50);
+  const [trend, setTrend] = useState("");
+  const [timeline, setTimeline] = useState([]);
+  const [relatedVideos, setRelatedVideos] = useState([]);
+  const [relatedPeople, setRelatedPeople] = useState([]);
+  const [relatedMemeIds, setRelatedMemeIds] = useState([]);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(null);
+
+  if (!user || !["editor", "admin"].includes(user.role)) {
+    return <div className="max-w-md mx-auto px-5 py-20 text-center text-neutral-500">에디터 권한이 필요해.</div>;
+  }
+
+  const toggleCategory = (c) => {
+    setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  };
+
+  const toggleRelated = (rid) => {
+    setRelatedMemeIds((prev) => (prev.includes(rid) ? prev.filter((x) => x !== rid) : [...prev, rid]));
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (categories.length === 0) return setError("카테고리를 하나 이상 선택해줘");
+    const trendNums = splitCsv(trend)
+      .map(Number)
+      .filter((n) => !Number.isNaN(n));
+    if (trendNums.length < 2) return setError("유행 추이 수치를 2개 이상 콤마로 구분해서 입력해줘 (예: 40,52,61)");
+
+    setSubmitting(true);
+    try {
+      const created = await createMeme({
+        id: id.trim(),
+        submissionId: prefill?.submissionId,
+        name,
+        categories,
+        oneLiner,
+        oneLineSummary,
+        whatIsIt,
+        whyPopular,
+        howToUse,
+        platforms: splitCsv(platforms),
+        period,
+        keywords: splitCsv(keywords),
+        registeredAt,
+        buzz: Number(buzz),
+        search: Number(search),
+        usage: Number(usage),
+        trend: trendNums,
+        timeline: timeline.filter((t) => t.date && t.text),
+        relatedVideos: relatedVideos.filter((v) => v.title && v.channel),
+        relatedPeople: relatedPeople.filter((p) => p.name && p.reason && p.content),
+        relatedMemeIds,
+      });
+      await refreshMemes();
+      setDone(created);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="max-w-sm mx-auto px-5 py-20 text-center pop-in">
+        <div className="w-14 h-14 rounded-full brand-gradient text-white flex items-center justify-center mx-auto mb-5">
+          <Sparkles size={22} />
+        </div>
+        <h1 className="font-serif-kr text-2xl mb-2">등록 완료</h1>
+        <p className="text-sm text-neutral-500 mb-8">"{done.name}"이(가) 밈 사전에 새로 등록됐어.</p>
+        <div className="flex items-center justify-center gap-2">
+          <button onClick={() => setView({ name: "detail", id: done.id })} className="btn-primary">
+            등록된 밈 보기
+          </button>
+          <button onClick={() => setView({ name: "submissionQueue" })} className="btn-secondary">
+            제보 큐로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-5 py-10">
+      <h1 className="font-serif-kr text-3xl mb-1">밈 등록</h1>
+      <p className="text-sm text-neutral-400 mb-8">승인된 제보를 실제 밈 콘텐츠로 검수해서 등록해.</p>
+
+      {prefill?.sourceUrl && (
+        <div className="surface-card p-4 mb-6 text-sm">
+          <span className="text-neutral-400">제보자가 알려준 출처: </span>
+          <a href={prefill.sourceUrl} target="_blank" rel="noreferrer" className="text-violet-600 hover:underline break-all">
+            {prefill.sourceUrl}
+          </a>
+        </div>
+      )}
+
+      <form onSubmit={submit} className="surface-card p-6 sm:p-7 space-y-5">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="block text-xs text-neutral-400 mb-1.5">고유 ID(영문 소문자, URL에 씀)</span>
+            <input value={id} onChange={(e) => setId(e.target.value)} placeholder="예: ddujjonkku" required className="input-field" />
+          </label>
+          <label className="block">
+            <span className="block text-xs text-neutral-400 mb-1.5">이름</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} required className="input-field" />
+          </label>
+        </div>
+
+        <div>
+          <span className="block text-xs text-neutral-400 mb-1.5">카테고리(1개 이상)</span>
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORIES.map((c) => (
+              <button
+                type="button"
+                key={c}
+                onClick={() => toggleCategory(c)}
+                className={`pill ring-1 transition-colors ${
+                  categories.includes(c)
+                    ? "bg-violet-100 text-violet-700 ring-violet-300"
+                    : "bg-white text-neutral-500 ring-neutral-200"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="한 줄 소개" required className="input-field" />
+        <input
+          value={oneLineSummary}
+          onChange={(e) => setOneLineSummary(e.target.value)}
+          placeholder="한 줄 요약(상세 페이지 하단 강조 문구)"
+          required
+          className="input-field"
+        />
+        <textarea
+          value={whatIsIt}
+          onChange={(e) => setWhatIsIt(e.target.value)}
+          placeholder="이게 뭐야?"
+          required
+          rows={2}
+          className="input-field resize-none"
+        />
+        <textarea
+          value={whyPopular}
+          onChange={(e) => setWhyPopular(e.target.value)}
+          placeholder="왜 유행했어?"
+          required
+          rows={2}
+          className="input-field resize-none"
+        />
+        <textarea
+          value={howToUse}
+          onChange={(e) => setHowToUse(e.target.value)}
+          placeholder="어떻게 사용해?"
+          required
+          rows={2}
+          className="input-field resize-none"
+        />
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <input
+            value={platforms}
+            onChange={(e) => setPlatforms(e.target.value)}
+            placeholder="주요 플랫폼(콤마 구분, 예: 인스타그램, 틱톡)"
+            required
+            className="input-field"
+          />
+          <input
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            placeholder="유행 시기(예: 2025.02 ~ 진행중)"
+            required
+            className="input-field"
+          />
+        </div>
+        <input value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="관련 키워드(콤마 구분)" required className="input-field" />
+        <label className="block">
+          <span className="block text-xs text-neutral-400 mb-1.5">등록 시점(트렌드 정렬 기준)</span>
+          <input type="date" value={registeredAt} onChange={(e) => setRegisteredAt(e.target.value)} required className="input-field" />
+        </label>
+
+        <div>
+          <span className="block text-xs text-neutral-400 mb-1.5">유행 지표 (Mock 성격 — 에디터 수동 입력)</span>
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <label className="block">
+              <span className="block text-[11px] text-neutral-400 mb-1">화제성</span>
+              <input type="number" min="0" max="100" value={buzz} onChange={(e) => setBuzz(e.target.value)} className="input-field" />
+            </label>
+            <label className="block">
+              <span className="block text-[11px] text-neutral-400 mb-1">검색량</span>
+              <input type="number" min="0" max="100" value={search} onChange={(e) => setSearch(e.target.value)} className="input-field" />
+            </label>
+            <label className="block">
+              <span className="block text-[11px] text-neutral-400 mb-1">사용 빈도</span>
+              <input type="number" min="0" max="100" value={usage} onChange={(e) => setUsage(e.target.value)} className="input-field" />
+            </label>
+          </div>
+          <input
+            value={trend}
+            onChange={(e) => setTrend(e.target.value)}
+            placeholder="관심도 추이(콤마 구분, 2개 이상, 예: 40,52,61,70,78,82)"
+            required
+            className="input-field"
+          />
+        </div>
+
+        <RowListField
+          label="유래와 확산 과정 (선택)"
+          rows={timeline}
+          setRows={setTimeline}
+          fields={[
+            { key: "date", placeholder: "시기(예: 2025.02)" },
+            { key: "text", placeholder: "무슨 일이 있었는지" },
+          ]}
+          addLabel="타임라인 추가"
+        />
+        <RowListField
+          label="관련 영상 (선택)"
+          rows={relatedVideos}
+          setRows={setRelatedVideos}
+          fields={[
+            { key: "title", placeholder: "영상 제목" },
+            { key: "channel", placeholder: "채널명" },
+          ]}
+          addLabel="영상 추가"
+        />
+        <RowListField
+          label="관련 인물 (선택)"
+          rows={relatedPeople}
+          setRows={setRelatedPeople}
+          fields={[
+            { key: "name", placeholder: "이름/활동명" },
+            { key: "reason", placeholder: "관련된 이유" },
+            { key: "content", placeholder: "출처(영상명 등)" },
+          ]}
+          addLabel="인물 추가"
+        />
+
+        {memes.length > 0 && (
+          <div>
+            <span className="block text-xs text-neutral-400 mb-1.5">관련 밈 (선택)</span>
+            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+              {memes.map((m) => (
+                <button
+                  type="button"
+                  key={m.id}
+                  onClick={() => toggleRelated(m.id)}
+                  className={`pill ring-1 transition-colors ${
+                    relatedMemeIds.includes(m.id)
+                      ? "bg-violet-100 text-violet-700 ring-violet-300"
+                      : "bg-white text-neutral-500 ring-neutral-200"
+                  }`}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2">{error}</p>}
+        <button type="submit" disabled={submitting} className="btn-primary w-full py-2.5">
+          {submitting ? "등록 중..." : "밈으로 등록하기"}
+        </button>
+      </form>
+    </div>
+  );
+}

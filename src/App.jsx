@@ -12,6 +12,10 @@ import { MyPageView } from "./pages/MyPageView";
 import { EditProfileView } from "./pages/EditProfileView";
 import { ScrapsView } from "./pages/ScrapsView";
 import { AdminUsersView } from "./pages/AdminUsersView";
+import { SubmitMemeView } from "./pages/SubmitMemeView";
+import { MySubmissionsView } from "./pages/MySubmissionsView";
+import { SubmissionQueueView } from "./pages/SubmissionQueueView";
+import { RegisterMemeView } from "./pages/RegisterMemeView";
 
 export default function App() {
   const {
@@ -22,6 +26,7 @@ export default function App() {
     memes,
     memesLoading,
     memeById,
+    refreshMemes,
     scraps,
     toggleScrap,
     recentlyViewed,
@@ -50,6 +55,7 @@ export default function App() {
               scraps={scraps}
               toggleScrap={toggleScrap}
               memeById={memeById}
+              refreshMemes={refreshMemes}
             />
           )}
           {view.name === "trend" && <TrendView setView={setView} memes={memes} />}
@@ -71,6 +77,12 @@ export default function App() {
             <ScrapsView user={user} scraps={scraps} toggleScrap={toggleScrap} setView={setView} memeById={memeById} />
           )}
           {view.name === "admin" && <AdminUsersView user={user} />}
+          {view.name === "submit" && <SubmitMemeView user={user} setView={setView} />}
+          {view.name === "mySubmissions" && <MySubmissionsView user={user} setView={setView} />}
+          {view.name === "submissionQueue" && <SubmissionQueueView user={user} setView={setView} />}
+          {view.name === "registerMeme" && (
+            <RegisterMemeView user={user} setView={setView} memes={memes} refreshMemes={refreshMemes} prefill={view.prefill} />
+          )}
         </div>
       )}
 

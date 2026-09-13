@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Heart, LogOut, Search, Settings, ShieldCheck, UserRound } from "lucide-react";
+import { ChevronDown, FileText, Heart, Inbox, LogOut, Megaphone, Search, Settings, ShieldCheck, UserRound } from "lucide-react";
 import { Logo } from "./Logo";
 import { SearchBar } from "./SearchBar";
 
@@ -61,6 +61,20 @@ function UserMenu({ user, setView, onLogout }) {
           >
             <Settings size={15} className="text-neutral-400" /> 내 정보 수정
           </button>
+          <button
+            onMouseDown={() => setView({ name: "mySubmissions" })}
+            className="w-full text-left px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+          >
+            <FileText size={15} className="text-neutral-400" /> 내 제보
+          </button>
+          {(user.role === "editor" || user.role === "admin") && (
+            <button
+              onMouseDown={() => setView({ name: "submissionQueue" })}
+              className="w-full text-left px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+            >
+              <Inbox size={15} className="text-neutral-400" /> 제보 승인
+            </button>
+          )}
           {user.role === "admin" && (
             <button
               onMouseDown={() => setView({ name: "admin" })}
@@ -104,6 +118,14 @@ export function NavBar({ view, setView, user, onLogout, memes }) {
           </button>
         </nav>
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setView({ name: "submit" })}
+            className={`text-sm flex items-center gap-1 transition-colors ${
+              view.name === "submit" ? "text-violet-600" : "text-neutral-500 hover:text-violet-600"
+            }`}
+          >
+            <Megaphone size={14} /> 제보하기
+          </button>
           <button
             onClick={() => setView({ name: "scraps" })}
             className={`text-sm flex items-center gap-1 transition-colors ${

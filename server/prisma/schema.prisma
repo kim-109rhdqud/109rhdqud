@@ -159,5 +159,9 @@ model Submission {
   reviewedAt    DateTime?
   createdAt     DateTime         @default(now())
 
+  // 승인된 제보가 실제로 등록된 Meme의 id. 느슨한 참조로만 두고(FK 관계 없음) —
+  // 채워지면 "이미 등록됨"으로 보고 큐 화면에서 재등록 버튼을 감춤(중복 등록 방지, 2026-09-13 발견).
+  registeredMemeId String?
+
   @@map("submissions")
 }

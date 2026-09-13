@@ -77,6 +77,20 @@ export async function getMemes({ category, q } = {}) {
   return memes.map(normalizeMeme);
 }
 
+// 밈 등록(에디터 전용) — 제보 승인 후 실제 콘텐츠로 검수해 등록할 때 씀.
+export async function createMeme(meme) {
+  const created = await request("/memes", { method: "POST", body: JSON.stringify(meme) });
+  return normalizeMeme(created);
+}
+
+// 인증마크 갱신(에디터 전용) — 호출마다 changeLog에 이력이 쌓임.
+export function updateVerification(memeId, { verified, sources, copyrightHolder, note }) {
+  return request(`/memes/${memeId}/verification`, {
+    method: "PATCH",
+    body: JSON.stringify({ verified, sources, copyrightHolder, note }),
+  });
+}
+
 export async function getScraps() {
   const memes = await request("/scraps");
   return memes.map(normalizeMeme);
@@ -105,4 +119,25 @@ export async function getRecentlyViewed() {
 
 export function recordRecentlyViewed(memeId) {
   return request(`/recently-viewed/${memeId}`, { method: "POST" });
+}
+
+export function createSubmission({ name, category, oneLiner, sourceUrl }) {
+  return request("/submissions", {
+    method: "POST",
+    body: JSON.stringify({ name, category, oneLiner, sourceUrl }),
+  });
+}
+
+// 전체 큐(에디터/관리자 전용) — 제보자 닉네임 포함.
+export function getSubmissionQueue() {
+  return request("/submissions");
+}
+
+// 역할 상관없이 항상 내 제보만.
+export function getMySubmissions() {
+  return request("/submissions/mine");
+}
+
+export function updateSubmissionStatus(id, status) {
+  return request(`/submissions/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
 }

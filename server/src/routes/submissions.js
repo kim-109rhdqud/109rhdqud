@@ -5,11 +5,15 @@ import { requireAuth, requireEditor } from "../middleware/auth.js";
 const router = Router();
 router.use(requireAuth);
 
-// 제보 등록 — payload에는 제보자가 작성한 밈 초안(이름/설명 등)이 그대로 들어감.
+// 제보 등록 — 이름/카테고리/한줄설명/출처 링크만 최소로 받아서 payload에 담음.
 router.post("/", async (req, res, next) => {
   try {
+    const { name, category, oneLiner, sourceUrl } = req.body;
+    if (!name || !category || !oneLiner || !sourceUrl) {
+      return res.status(400).json({ error: "밈 이름, 카테고리, 한줄설명, 출처 링크를 모두 입력해줘" });
+    }
     const submission = await prisma.submission.create({
-      data: { submittedById: req.user.id, payload: req.body },
+      data: { submittedById: req.user.id, payload: { name, category, oneLiner, sourceUrl } },
     });
     res.status(201).json(submission);
   } catch (err) {
@@ -17,13 +21,23 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-// 에디터는 전체 큐, 일반 유저는 자기 제보만 조회
-router.get("/", async (req, res, next) => {
+// 전체 큐(에디터 전용, 제보자 닉네임 포함) — "내 제보"와 별개 엔드포인트로 분리해둠.
+// 같이 쓰면 에디터/관리자 계정이 "내 제보 목록"을 열었을 때 남의 제보까지 자기 것처럼 보이는 문제가 있었음.
+router.get("/", requireEditor, async (req, res, next) => {
   try {
-    if (["editor", "admin"].includes(req.user.role)) {
-      const all = await prisma.submission.findMany({ orderBy: { createdAt: "desc" } });
-      return res.json(all);
-    }
+    const all = await prisma.submission.findMany({
+      include: { submittedBy: { select: { nickname: true, username: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(all);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 내 제보만 — 역할 상관없이 항상 호출한 사람 것만 반환.
+router.get("/mine", async (req, res, next) => {
+  try {
     const mine = await prisma.submission.findMany({
       where: { submittedById: req.user.id },
       orderBy: { createdAt: "desc" },

@@ -38,6 +38,9 @@ export function useAppState() {
       .finally(() => setMemesLoading(false));
   }, []);
 
+  // 밈 등록(에디터) 직후처럼, 서버에 새로 생긴 밈을 화면 새로고침 없이 반영해야 할 때 씀.
+  const refreshMemes = () => getMemes().then(setMemes).catch(() => {});
+
   useEffect(() => {
     const ids = user ? getScraps().then((list) => list.map((m) => m.id)) : Promise.resolve([]);
     ids.then(setScraps).catch(() => setScraps([]));
@@ -87,6 +90,7 @@ export function useAppState() {
     memes,
     memesLoading,
     memeById,
+    refreshMemes,
     scraps,
     toggleScrap,
     recentlyViewed,
