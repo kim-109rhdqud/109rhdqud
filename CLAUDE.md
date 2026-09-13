@@ -65,6 +65,10 @@
 - [docs/STRATEGY.md](docs/STRATEGY.md)에 "이 기획이 실제로 경쟁력이 있는가"를 스스로 반박·보완해나간 기획 피드백 토론 기록이 있음. 차별화 전략, 인증마크(신뢰도) 설계, 수익모델 등을 다룰 때 먼저 확인할 것. 모든 스레드(2-1~2-8) 닫힘 — 기획 단계는 확정·마무리됨.
 - [docs/BACKEND.md](docs/BACKEND.md)에 실제 배포를 위한 백엔드 아키텍처 결정(Node/Express + Neon Postgres + Prisma + httpOnly 쿠키 JWT, 모노레포 구조, 데이터 모델·API 엔드포인트 초안)이 정리돼 있음. 백엔드 관련 작업 시작 전 먼저 확인할 것.
 - 이 프로젝트는 PC방 등 여러 컴퓨터를 오가며 작업함 — 세션 종료 전 항상 git commit + push, 시작 시 git pull.
+- **환경 점검은 "정말 필요한 것만" 하고 검증용 절차를 늘리지 말 것(2026-09-14 피드백: 매번 시간 너무 오래 걸림).** 이 프로젝트는 실제로 매번 다른 PC(PC방)라 `node_modules`/`.env`가 없는 게 정상이고 설치 자체는 매번 새로 해야 함 — 그건 못 줄임. 대신 아래 두 가지는 **항상 하지 말고, 실제로 문제가 생겼을 때만(반응적으로)** 할 것:
+  - **손상 체크(lucide-react 파일 개수, `@tailwindcss/oxide` 네이티브 바이너리 등)를 설치 끝날 때마다 미리 해보지 말 것.** 이건 가끔 생기는 문제지 매번 생기는 게 아님 — `npm install`이 끝나면 바로 build/lint 한 번만 돌려보고, 거기서 진짜로 이상한 모듈 해석 에러가 나올 때만 그때 가서 해당 패키지를 의심하고 재설치할 것.
+  - **dev 서버·백엔드 서버를 띄워서 curl로 확인하고 다시 끄는 절차를 환경 점검에 기본으로 넣지 말 것.** build 성공 + lint 클린이면 환경 자체는 검증된 것 — 서버를 실제로 띄워서 보여주는 건 사용자가 그걸 원할 때(직접 보고 싶다거나 실행해달라고 할 때)만 별도로 할 것.
+  결국 환경 점검의 기본 흐름은: node 확인 → git identity 확인/수정 → `.env` 없으면 템플릿에서 생성 → `npm install`(서버는 `--ignore-scripts`) → `prisma generate` → Vite `net use` 패치 적용(이건 이 네트워크에서 100% 재현되는 문제라 예방적으로 바로 할 것) → build/lint 한 번. 여기서 끝 — 추가 검증은 안 함.
 - **PC마다 node.js가 아예 설치되어 있지 않을 수 있음** (PC방 컴퓨터가 특히 그럼). PATH 문제가 아니라 진짜 미설치인지 먼저 확인할 것(`node -v`). 설치돼 있어도 방금 설치했다면 VS Code(정확히는 Claude Code 확장을 호스팅하는 프로세스)를 재시작해야 새 PATH가 반영됨 — 재시작 전에는 설치했는데도 `command not found`가 뜰 수 있음.
 - **진짜 새 PC는 git 사용자 정보(`user.name`/`user.email`)도 아예 설정 안 돼 있어서 첫 커밋 시도에서 "Author identity unknown" 에러가 남(2026-09-13 확인).** `git log --format='%an <%ae>'`로 기존 커밋 작성자를 확인해서 `git config user.name "109kim"` / `git config user.email "27174298leo@gmail.com"`로 (레포 로컬에만, `--global` 없이) 맞춰줄 것.
 - **이 PC방 컴퓨터는 `cmd.exe`/`powershell.exe` 프로세스 스폰 자체를 정책상 막아놓음 — Claude 도구뿐 아니라 사용자가 직접 여는 git bash에서도 재현됨(확인됨: 2026-09-10).** `npm run dev`/`npm run build`/`npm run lint`는 Windows에서 npm이 내부적으로 `cmd.exe /d /s /c "..."`로 스크립트를 실행하는데, 이 스폰이 막히면서 `> vite` 같은 배너 줄만 찍히고 그 이후 아무 반응 없이 조용히 멈춘다(사용자 bash에서도, Claude의 Bash 도구에서도 동일 증상: 에러 메시지 없이 그냥 멈추거나 exit 127).
