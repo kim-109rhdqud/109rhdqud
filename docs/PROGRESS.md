@@ -41,17 +41,21 @@
 - **`npm install`이 성공해도 일부 패키지가 손상된 채 설치될 수 있다는 새 이슈 발견 및 해결** — `@tailwindcss/oxide-win32-x64-msvc`의 네이티브 바이너리 손상, `lucide-react` 아이콘 파일 대량 누락(4000여 개 중 1155개만 설치됨, `index.mjs` 포함) 두 건 모두 재현됨. 원인은 이 네트워크의 다운로드 불안정으로 추정. 해당 패키지(또는 전체 `node_modules`+`package-lock.json`) 재설치로 둘 다 해결. Vite의 `net use`/cmd.exe 우회 패치도 새 `node_modules`에 재적용함(둘 다 CLAUDE.md에 기록).
 - **최근 본 밈 서버 이관 — 코드 작업 완료.** `server/src/index.js`에 `/recently-viewed` 라우트 마운트, `src/lib/api.js`에 `getRecentlyViewed`/`recordRecentlyViewed` 추가, `useAppState.js`를 스크랩과 동일 패턴(로그인 시에만 서버 fetch/기록, 비로그인 추적 안 함)으로 교체하고 이제 안 쓰는 `src/lib/storage.js` 삭제(localStorage 완전히 걷어냄). 빌드/린트 클린, `curl`로 `/health`·`/recently-viewed`(401 확인)까지 서버 기동 후 확인 완료.
 - 스키마 변경분(`RecentlyViewed` 테이블) 마이그레이션 SQL도 생성해둠 — `server/prisma/migrations/20260913180750_add_recently_viewed/migration.sql`. 이 과정에서 `migrate diff --from-migrations`가 문서와 달리 shadow database(=5432 TCP)를 요구해서 이 네트워크에선 안 된다는 것 발견 → 스키마 스냅샷 두 개를 직접 비교하는 `--from-schema-datamodel` 방식으로 우회(CLAUDE.md에 상세 기록). `prisma/migrations/migration_lock.toml`이 애초에 없었던 것도 발견해서 새로 만듦.
-- **DB 마이그레이션 자체는 미적용.** `server/.env`가 이 PC에 없어서 새로 만들었는데, `JWT_SECRET`은 새로 생성해 채웠지만 `DATABASE_URL`은 Neon 대시보드에서만 얻을 수 있는 실제 값이라 자리표시자로 남겨둠 — **다음에 이 값 채우고 `node prisma/apply-migration.js prisma/migrations/20260913180750_add_recently_viewed/migration.sql` 실행할 것.** 적용 후 `curl`로 로그인 → 밈 상세 조회 → `GET /recently-viewed` 순서로 실동작 확인까지 하면 이 항목 완전히 끝남.
+- **DB 마이그레이션 적용 완료 + 실동작 확인 완료.** 실제 `DATABASE_URL`을 `server/.env`에 채우고 `apply-migration.js`로 `recently_viewed` 테이블 생성. curl로 비로그인 401, 조회 기록 204, 같은 밈 재조회 시 upsert로 중복 안 쌓이는 것, 최신순 정렬, 5개 초과 시 5개로 잘리는 것까지 전부 확인. 이 항목 완전히 끝남.
+- **제보(밈 제안) → 승인 → 실제 밈 등록 흐름 신규 구현.** [SubmitMemeView](../src/pages/SubmitMemeView.jsx)(제보 폼, 이름/카테고리/한줄설명/출처 링크), [MySubmissionsView](../src/pages/MySubmissionsView.jsx)(내 제보 목록, 역할 무관 항상 본인 것만 보이는 `GET /submissions/mine` 신규 분리), [SubmissionQueueView](../src/pages/SubmissionQueueView.jsx)(에디터/관리자 전용 승인 큐, `GET /submissions`는 이제 에디터 전용). 원래 계획엔 없었지만 승인만으론 부족하다는 걸 확인해서(아래 참고) 승인된 제보를 실제로 `POST /memes`로 등록하는 [RegisterMemeView](../src/pages/RegisterMemeView.jsx)까지 같이 만듦 — Meme 스키마 전체 필드(설명 3종/플랫폼/키워드/유행 지표/타임라인/관련영상/관련인물/관련밈)를 채우는 폼, 제보 내용으로 이름/카테고리/한줄소개 미리 채움. `Submission.registeredMemeId` 컬럼 추가(마이그레이션 `20260913200000_add_submission_registered_meme`)해서 같은 제보가 중복 등록되는 걸 막음.
+- **인증마크 갱신 UI 신규 구현.** `PATCH /memes/:id/verification`을 curl로 먼저 검증하다가 "인증됨인데 출처가 1개뿐이어도 통과되는" 검증 누락을 발견해 서버에 "독립 출처 2개 이상" 체크 추가(STRATEGY.md 2-3 기준). [DetailView](../src/pages/DetailView.jsx)에 에디터/관리자 전용 [VerificationEditForm](../src/components/VerificationEditForm.jsx) 신규 추가(인증 토글, 출처 추가/삭제, 원저작권자, 수정 메모 → changeLog에 쌓임).
+- **코드 리뷰로 실제 버그 여러 건 발견·수정** — ① 제보 승인/반려 낙관적 업데이트의 롤백이 스냅샷 클로저 방식이라 동시에 다른 항목을 처리하면 그 변경을 덮어쓰는 문제 → 서버 재조회 방식으로 수정. ② 밈 등록 시 ID 중복 체크가 사전 체크만 있어서 동시 요청 레이스에 취약 → DB 고유 제약 위반(P2002)을 잡아 409로 변환. ③ **가장 중요**: 같은 제보의 중복 등록 방지 로직이 `$transaction`으로만 감싸져 있었는데, Postgres 기본 격리 수준(READ COMMITTED)에서는 그것만으론 두 동시 요청을 못 막는다는 걸 리뷰에서 지적받음 — `tx.submission.updateMany({ where: { id, registeredMemeId: null }, ... })` 조건부 원자적 UPDATE로 교체하고, 실패 시 방금 만든 밈까지 롤백되는 것까지 curl로 재검증. ④ 제보 카드 마크업이 3곳에 복붙돼 있던 것을 [SubmissionCard](../src/components/SubmissionCard.jsx)로 공용화.
+- 위 전부 build/lint 클린 + curl로 각 API의 정상/에러 케이스(401/403/404/409/400) 전부 실동작 확인, 테스트 계정·데이터는 매번 정리. 커밋 + push 완료(`e97bcf5`).
 
 ## 진행 중 / 다음에 할 일
 **사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
 
 1. ~~사용자 역할 관리~~ **완료** (위 참고)
-2. ~~최근 본 밈 서버 이관~~ **코드는 완료, DB 마이그레이션 적용 + 실동작 확인만 남음** (위 2026-09-13 세션 참고 — `server/.env`에 실제 `DATABASE_URL` 채우고 `apply-migration.js` 실행)
-3. **인증마크 갱신 UI** — 백엔드 `PATCH /memes/:id/verification`은 이미 있음(에디터 전용, **curl로도 아직 검증 안 됨 — UI 만들기 전에 먼저 curl로 확인할 것**). `DetailView`에 editor/admin에게만 보이는 수정 폼 추가, `api.js`에 `updateVerification` 추가.
-4. **제보(Submission) UI** — 백엔드 `POST/GET/PATCH /submissions`도 이미 있음(**이것도 curl 미검증**). 제보 폼(이름/카테고리/한줄설명/출처링크 정도로 최소화), 내 제보 목록, 에디터 전용 승인 큐 3개 화면 신규. 승인해도 Meme 레코드 자동 생성은 안 함(STRATEGY.md 2-6 설계 유지 — 에디터가 검수 후 별도 등록).
+2. ~~최근 본 밈 서버 이관~~ **완료** (마이그레이션 적용 + curl 실동작 확인까지, 위 참고)
+3. ~~인증마크 갱신 UI~~ **완료** (위 참고 — curl 검증 중 출처 개수 미검증 버그 발견해 같이 고침)
+4. ~~제보(Submission) UI~~ **완료** (제보 폼/내 제보 목록/승인 큐 3화면 + 승인된 제보를 실제 밈으로 등록하는 화면까지, 위 참고)
 5. **실제 트렌드 데이터 (커스텀 기간)** — `rank.js`의 해시 기반 가짜 생성(`customRankList`)을 실제 데이터로 교체. 새 모델 `MemeDailyStat`(memeId+date+views+searches, 이벤트마다 upsert 증가) 추가, `POST /memes/:id/view`·`POST /search-events`(둘 다 비로그인 허용 — 실사용 신호라 익명도 카운트) + `GET /memes/trend/custom` 신규. `TrendView`의 커스텀 기간 분기가 동기 함수에서 비동기 fetch로 구조 자체가 바뀌는 게 이 작업의 핵심 — `rank.js`의 `customRankList`/해시 함수는 삭제. **배포 직후엔 데이터가 거의 비어있음 — UI에 그 점을 고지할 것.**
-6. **실제 URL 라우팅** — 5번(제보)까지 만들고 나서 진행(새 view 이름들이 다 나온 다음에 경로 매핑표를 한 번에 짜는 게 나음). 새 라이브러리 추가 안 하고 `src/lib/routes.js`(viewToPath/pathToView) + `useAppState.js`의 `setView`가 `history.pushState`도 같이 하도록 확장 + `popstate` 리스너 추가. 기존 ~13곳의 `setView(...)` 호출부는 전혀 안 건드려도 됨. 배포 시 SPA fallback(`vercel.json`/`_redirects`) 설정 필요(7번과 연결).
+6. **실제 URL 라우팅** — 5번까지 만들고 나서 진행(새 view 이름들이 다 나온 다음에 경로 매핑표를 한 번에 짜는 게 나음). 새 라이브러리 추가 안 하고 `src/lib/routes.js`(viewToPath/pathToView) + `useAppState.js`의 `setView`가 `history.pushState`도 같이 하도록 확장 + `popstate` 리스너 추가. 기존 ~13곳의 `setView(...)` 호출부는 전혀 안 건드려도 됨(제보/등록/인증마크 화면 추가로 view 이름이 더 늘었으니 매핑표에 반영할 것). 배포 시 SPA fallback(`vercel.json`/`_redirects`) 설정 필요(7번과 연결).
 7. **배포** — 프론트 Vercel/Netlify + 백엔드 Render + Neon(기존). 쿠키 `sameSite`/`secure`와 CORS는 `server/src/lib/jwt.js`/`index.js`에 이미 `NODE_ENV` 분기 처리돼 있어서 코드 변경 불필요, 환경변수 설정과 SPA fallback 설정이 메인.
 
 설계 검토 결과 전문은 이 세션 대화에만 있고 별도 문서화는 안 함 — 다음 세션에서 이어갈 때 위 요약이면 충분할 것.
@@ -62,10 +66,12 @@
 - 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 위 순서보다 후순위.
 
 ## 알려진 한계
-- 최근 본 밈은 코드상 서버 연동은 끝났지만 DB 마이그레이션 미적용이라 아직 실제로는 동작 안 함(위 "진행 중" 2번 참고 — `DATABASE_URL` 채우고 마이그레이션 적용하면 끝)
 - 라우팅 라이브러리 없음 — URL 공유, 브라우저 뒤로가기 불가(위 "진행 중" 6번에서 해결 예정)
 - 커스텀 기간 트렌드는 가짜 데이터(위 "진행 중" 5번에서 실제 데이터로 교체 예정)
 - 최초 admin 계정 부트스트랩은 여전히 DB 직접 수정 필요(그 이후 승격은 관리 화면으로 가능)
+- 등록된 밈을 수정/삭제하는 UI가 없음(잘못 등록하면 DB 직접 수정 필요) — 아직 누구도 요청 안 해서 후순위
+- `server/` 의존성에 npm audit 취약점 5건(moderate 2, high 3) 확인만 하고 조치 안 함
+- 자동화 테스트(유닛/통합)가 전혀 없음 — 지금까지 전부 수동 curl/브라우저 검증으로만 확인
 
 ## 세션 마무리 체크리스트
 - [ ] 이 파일의 "진행 중 / 다음에 할 일" 업데이트

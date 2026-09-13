@@ -69,28 +69,32 @@
   `phone`)만 수정 가능하게 함 — 필요하면 나중에 조정.
 - `scraps` — `user_id` + `meme_id` 조인 테이블. 기존 localStorage 스크랩을 대체.
 - `submissions` — [STRATEGY.md](STRATEGY.md) 2-6 "제보 → 에디터 승인 큐" 절충안을 위한 테이블
-  (status: `pending` / `approved` / `rejected`, `reviewed_by`, `reviewed_at`).
-- `recently_viewed`(2026-09-12 추가, 아직 마이그레이션 미적용) — `(userId, memeId)` 조합당 한 행,
-  볼 때마다 `viewedAt`만 갱신(upsert)하고 조회 시 내림차순 최근 5개만 가져옴. 처음엔 낮은 우선순위라
-  localStorage 유지로 남겨뒀었는데, 2026-09-12에 나머지 미완성 기능들과 함께 서버 이관하기로 범위에
-  다시 포함시킴.
+  (status: `pending` / `approved` / `rejected`, `reviewed_by`, `reviewed_at`). `registeredMemeId`
+  (2026-09-13 추가, FK 아닌 느슨한 참조)가 채워지면 이 제보로 이미 밈이 등록됐다는 뜻 — 중복 등록 방지용.
+- `recently_viewed`(2026-09-12 추가, 마이그레이션 적용 및 curl 검증 완료) — `(userId, memeId)` 조합당
+  한 행, 볼 때마다 `viewedAt`만 갱신(upsert)하고 조회 시 내림차순 최근 5개만 가져옴.
 
 ## API 엔드포인트 (구현 완료, 실제 코드 기준)
 - `POST /auth/signup`(username/password/nickname/email/realName/birthDate/phone 전부 필수),
   `POST /auth/login`(**username**+password), `POST /auth/logout`, `GET /auth/me`,
   `PATCH /auth/me`(nickname/email/realName/phone 수정, username/birthDate는 불변)
 - `GET /memes`(검색/필터 쿼리: `?category=`, `?q=`), `GET /memes/:id`
+- `POST /memes`(에디터 전용, 밈 등록 — 승인된 제보를 실제 콘텐츠로 검수해 등록할 때 씀. `submissionId`를
+  같이 보내면 해당 제보의 `registeredMemeId`를 원자적으로 채워서 같은 제보가 중복 등록되지 않게 막음.
+  밈 id 중복은 사전 체크 + DB 고유 제약 위반(P2002) 둘 다로 방어)
+- `PATCH /memes/:id/verification`(인증마크 갱신, 에디터 전용 — `verified: true`면 `sources` 2개 이상
+  필수, STRATEGY.md 2-3 기준)
 - `GET /scraps`(로그인 필요), `POST /scraps/:memeId`, `DELETE /scraps/:memeId`
-- `POST /submissions`(제보), `GET /submissions`(에디터는 전체 큐, 일반 유저는 자기 것만),
+- `GET/POST /recently-viewed`(로그인 필요, 최근 5개, `(userId,memeId)` upsert)
+- `POST /submissions`(제보), `GET /submissions/mine`(역할 무관 항상 본인 것만),
+  `GET /submissions`(에디터 전용, 전체 큐 — 제보자 `nickname`/`username` 포함),
   `PATCH /submissions/:id`(승인/반려, 에디터 전용)
-- `PATCH /memes/:id/verification`(인증마크 갱신, 에디터 전용)
 - `GET /users`(admin 전용, 목록 — PII 최소화해서 id/username/nickname/email/role만),
   `PATCH /users/:id/role`(admin 전용, 역할 변경) — 2026-09-12 신규
 - role 체크는 `requireAuth`(JWT 검증) 다음에 `requireEditor`/`requireAdmin` 미들웨어를 붙이는 식으로 처리
   (`server/src/middleware/auth.js`)
-- `server/src/routes/recentlyViewed.js`: 작성만 돼 있고 **아직 `index.js`에 마운트 안 됨** + 대응하는
-  `RecentlyViewed` 모델도 스키마엔 추가됐지만 마이그레이션 미적용 — 죽은 코드 상태([docs/PROGRESS.md](PROGRESS.md)
-  "진행 중" 참고).
+- 2026-09-13에 위 `POST /memes`·`PATCH /memes/:id/verification`·`GET/POST /recently-viewed`·
+  `GET /submissions`(+`/mine` 분리) 전부 curl로 정상/에러 케이스(401/403/404/409/400) 실동작 확인 완료.
 
 ## 진행 상황 (2026-09-11)
 - **완료**: `server/` 스캐폴드(Express 골격, `src/lib`, `src/middleware`, `src/routes`), Prisma 스키마
@@ -137,14 +141,14 @@
 6. ~~스크랩 API 프론트 연동~~ 완료 (2026-09-12) — 비로그인 스크랩은 로그인 유도로 확정, 게스트 스크랩 없음
 7. ~~에디터 role 관리~~ 완료 (2026-09-12) — `GET/PATCH /users`, `AdminUsersView`. 최초 admin
    부트스트랩은 여전히 DB 직접 수정 필요(그 이후는 화면으로 승격 가능).
-8. **최근 본 밈 서버 이관** — 스키마·라우트 코드는 작성해뒀지만 마이그레이션 미적용 + 마운트 안 됨
-   (자세한 내용은 [docs/PROGRESS.md](PROGRESS.md) "진행 중" 참고).
-9. **인증마크 갱신 UI + `/submissions` 제보 UI** — 두 라우트 다 코드는 있지만 curl 검증 전, UI도
-   아직 없음. UI 만들기 전에 curl로 먼저 검증할 것.
+8. ~~최근 본 밈 서버 이관~~ 완료 — 마이그레이션 적용 + curl 실동작 확인까지.
+9. ~~인증마크 갱신 UI + `/submissions` 제보 UI~~ 완료 — 둘 다 curl로 먼저 검증하다가 실제 버그를
+   발견해 같이 고침(인증마크는 출처 개수 미검증, 제보는 승인된 것을 실제로 등록하는 `POST /memes` +
+   `RegisterMemeView`까지 추가로 필요해서 같이 구현). 자세한 내용은 [docs/PROGRESS.md](PROGRESS.md) 참고.
 10. **커스텀 기간 트렌드를 실제 데이터로** — 새 `MemeDailyStat` 모델 + 조회/검색 이벤트 로깅 API
     필요(AI 기반 외부 데이터 수집은 안 함 — 앱 자체 실사용 신호만 사용).
 11. **실제 URL 라우팅** — 새 라이브러리 추가 없이 `history.pushState`/`popstate`를 기존 `view` state에
-    얹는 방식으로 결정(9번까지 끝난 뒤, view 이름이 다 나온 다음에 진행).
+    얹는 방식으로 결정(9번까지 끝났으니 이제 view 이름이 다 나온 상태 — 매핑표 짤 때 반영할 것).
 12. 배포: 프론트(Vercel/Netlify) + 백엔드(Render) + DB(Neon), CORS/쿠키 환경별 설정은 이미 코드에
     구현돼 있음(`server/src/lib/jwt.js`/`index.js`) — 환경변수 설정 + SPA fallback 설정이 메인.
     배포된 백엔드는 일반 네트워크에서도 Neon 어댑터로 잘 동작하는지 재확인.
