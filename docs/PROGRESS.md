@@ -46,6 +46,14 @@
 - **인증마크 갱신 UI 신규 구현.** `PATCH /memes/:id/verification`을 curl로 먼저 검증하다가 "인증됨인데 출처가 1개뿐이어도 통과되는" 검증 누락을 발견해 서버에 "독립 출처 2개 이상" 체크 추가(STRATEGY.md 2-3 기준). [DetailView](../src/pages/DetailView.jsx)에 에디터/관리자 전용 [VerificationEditForm](../src/components/VerificationEditForm.jsx) 신규 추가(인증 토글, 출처 추가/삭제, 원저작권자, 수정 메모 → changeLog에 쌓임).
 - **코드 리뷰로 실제 버그 여러 건 발견·수정** — ① 제보 승인/반려 낙관적 업데이트의 롤백이 스냅샷 클로저 방식이라 동시에 다른 항목을 처리하면 그 변경을 덮어쓰는 문제 → 서버 재조회 방식으로 수정. ② 밈 등록 시 ID 중복 체크가 사전 체크만 있어서 동시 요청 레이스에 취약 → DB 고유 제약 위반(P2002)을 잡아 409로 변환. ③ **가장 중요**: 같은 제보의 중복 등록 방지 로직이 `$transaction`으로만 감싸져 있었는데, Postgres 기본 격리 수준(READ COMMITTED)에서는 그것만으론 두 동시 요청을 못 막는다는 걸 리뷰에서 지적받음 — `tx.submission.updateMany({ where: { id, registeredMemeId: null }, ... })` 조건부 원자적 UPDATE로 교체하고, 실패 시 방금 만든 밈까지 롤백되는 것까지 curl로 재검증. ④ 제보 카드 마크업이 3곳에 복붙돼 있던 것을 [SubmissionCard](../src/components/SubmissionCard.jsx)로 공용화.
 - 위 전부 build/lint 클린 + curl로 각 API의 정상/에러 케이스(401/403/404/409/400) 전부 실동작 확인, 테스트 계정·데이터는 매번 정리. 커밋 + push 완료(`e97bcf5`).
+- **실제 URL 라우팅 구현 완료.** [src/lib/routes.js](../src/lib/routes.js) 신규(view state ↔ 실제 경로 매핑, 라우팅 라이브러리 없이 `history.pushState`/`popstate`) — `useAppState.js`의 `setView`에 연결. 기존 `setView(...)` 호출부(~40곳)는 전혀 안 건드림. `registerMeme`의 prefill(제보 큐에서 넘어올 때 채워지는 값)은 URL에 안 실림(새로고침하면 빈 폼 — 북마크 대상 아닌 일회성 화면이라 의도적). build/lint 클린, Vite dev 서버에서 모든 경로 curl로 200 확인. 브라우저 뒤로가기/새로고침 직접 확인은 사용자가 진행 중.
+- **배포 착수 — 백엔드(Render) 완료, 프론트(Vercel)는 중단(폰 필요).**
+  - 배포 전 실제 버그 발견: `server/package.json`에 `prisma`가 devDependencies에 있고 `generate` 자동 실행 스크립트가 없어서 Render에서 Prisma Client가 안 만들어질 뻔함 → `prisma`를 dependencies로 옮기고 `postinstall: prisma generate` 추가(Prisma 공식 권장 방식).
+  - Render가 Node 서비스 기본 Build Command로 `npm install; npm run build`를 쓰는데 `server/`엔 `build` 스크립트가 없어서 첫 배포 실패(`Missing script: "build"`) → 무해한 `"build": "echo ..."` 추가해서 해결.
+  - 루트에 `vercel.json`(SPA rewrite) 추가 — 실제 경로가 생겼으니 배포 후 `/meme/:id` 같은 딥링크 새로고침 시 404 안 나게.
+  - **Render 배포 성공 + 검증 완료**: `https://trend-book.onrender.com` — `/health` 200, `/memes` 9개 정상 반환(Neon 연결 확인). 환경변수: `DATABASE_URL`/`JWT_SECRET`/`NODE_ENV=production` 설정 완료, `CLIENT_ORIGIN`은 아직 플레이스홀더(Vercel URL 나오면 업데이트 필요).
+  - **Vercel은 GitHub 레포 연결까지 진행했는데 계정 2FA(인증 앱) 설정 화면에서 멈춤 — 휴대폰이 있어야 진행 가능해서 다음 세션으로 미룸.**
+  - **다음에 이어서 할 일(순서대로)**: ① 폰으로 Vercel 2FA(Authenticator 앱) 설정 → ② Vercel에서 레포 import, Environment Variables에 `VITE_API_URL=https://trend-book.onrender.com` 추가 → ③ Deploy → ④ 나온 Vercel URL을 Render의 `CLIENT_ORIGIN` 환경변수에 넣고 저장(자동 재배포됨) → ⑤ 실제 Vercel URL로 회원가입/로그인/밈 상세 새로고침(라우팅 확인)/스크랩까지 end-to-end 확인.
 
 ## 진행 중 / 다음에 할 일
 **사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
@@ -55,8 +63,10 @@
 3. ~~인증마크 갱신 UI~~ **완료** (위 참고 — curl 검증 중 출처 개수 미검증 버그 발견해 같이 고침)
 4. ~~제보(Submission) UI~~ **완료** (제보 폼/내 제보 목록/승인 큐 3화면 + 승인된 제보를 실제 밈으로 등록하는 화면까지, 위 참고)
 5. **실제 트렌드 데이터 (커스텀 기간)** — `rank.js`의 해시 기반 가짜 생성(`customRankList`)을 실제 데이터로 교체. 새 모델 `MemeDailyStat`(memeId+date+views+searches, 이벤트마다 upsert 증가) 추가, `POST /memes/:id/view`·`POST /search-events`(둘 다 비로그인 허용 — 실사용 신호라 익명도 카운트) + `GET /memes/trend/custom` 신규. `TrendView`의 커스텀 기간 분기가 동기 함수에서 비동기 fetch로 구조 자체가 바뀌는 게 이 작업의 핵심 — `rank.js`의 `customRankList`/해시 함수는 삭제. **배포 직후엔 데이터가 거의 비어있음 — UI에 그 점을 고지할 것.**
-6. **실제 URL 라우팅** — 5번까지 만들고 나서 진행(새 view 이름들이 다 나온 다음에 경로 매핑표를 한 번에 짜는 게 나음). 새 라이브러리 추가 안 하고 `src/lib/routes.js`(viewToPath/pathToView) + `useAppState.js`의 `setView`가 `history.pushState`도 같이 하도록 확장 + `popstate` 리스너 추가. 기존 ~13곳의 `setView(...)` 호출부는 전혀 안 건드려도 됨(제보/등록/인증마크 화면 추가로 view 이름이 더 늘었으니 매핑표에 반영할 것). 배포 시 SPA fallback(`vercel.json`/`_redirects`) 설정 필요(7번과 연결).
-7. **배포** — 프론트 Vercel/Netlify + 백엔드 Render + Neon(기존). 쿠키 `sameSite`/`secure`와 CORS는 `server/src/lib/jwt.js`/`index.js`에 이미 `NODE_ENV` 분기 처리돼 있어서 코드 변경 불필요, 환경변수 설정과 SPA fallback 설정이 메인.
+6. ~~실제 URL 라우팅~~ **완료** (위 참고)
+7. **배포 — 진행 중, 다음 세션에 이어갈 것.** 자세한 내용/정확한 재개 순서는 위 "완료된 것" 마지막 항목 참고.
+   - ~~백엔드(Render)~~ **완료** — `https://trend-book.onrender.com`, `/health`·`/memes` 확인됨.
+   - **프론트(Vercel) — 중단.** GitHub 레포 연결까지는 됐는데 Vercel 계정 2FA(Authenticator 앱) 설정 화면에서 멈춤(휴대폰 필요). 다음 세션 시작하면: 폰으로 2FA 설정 → 레포 import → `VITE_API_URL` 환경변수(Render URL) → Deploy → Vercel URL 나오면 Render의 `CLIENT_ORIGIN` 갱신 → 실제 브라우저로 전체 흐름(가입/로그인/밈 상세 새로고침/스크랩) 최종 확인.
 
 설계 검토 결과 전문은 이 세션 대화에만 있고 별도 문서화는 안 함 — 다음 세션에서 이어갈 때 위 요약이면 충분할 것.
 
@@ -66,7 +76,7 @@
 - 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 위 순서보다 후순위.
 
 ## 알려진 한계
-- 라우팅 라이브러리 없음 — URL 공유, 브라우저 뒤로가기 불가(위 "진행 중" 6번에서 해결 예정)
+- 아직 실제 배포 전(위 "진행 중" 7번 참고 — 백엔드는 떠 있고 프론트만 남음)
 - 커스텀 기간 트렌드는 가짜 데이터(위 "진행 중" 5번에서 실제 데이터로 교체 예정)
 - 최초 admin 계정 부트스트랩은 여전히 DB 직접 수정 필요(그 이후 승격은 관리 화면으로 가능)
 - 등록된 밈을 수정/삭제하는 UI가 없음(잘못 등록하면 DB 직접 수정 필요) — 아직 누구도 요청 안 해서 후순위
