@@ -9,9 +9,15 @@ import {
   getRecentlyViewed,
   recordRecentlyViewed,
 } from "../lib/api";
+import { pathToView, viewToPath } from "../lib/routes";
+
+function viewFromLocation() {
+  return pathToView(window.location.pathname, new URLSearchParams(window.location.search));
+}
 
 export function useAppState() {
-  const [view, setViewRaw] = useState({ name: "home" });
+  // 첫 로드 시 현재 URL을 그대로 view로 해석 — 딥링크/새로고침이 어디서든 맞는 화면으로 뜨게 함.
+  const [view, setViewRaw] = useState(viewFromLocation);
   // 로그인 세션은 이제 서버(httpOnly 쿠키)가 들고 있어서 localStorage엔 안 남김 —
   // 새로고침 시 /auth/me로 서버에 물어봐서 로그인 여부를 확인함(아래 useEffect).
   const [user, setUser] = useState(null);
@@ -51,6 +57,19 @@ export function useAppState() {
     ids.then(setRecentlyViewed).catch(() => setRecentlyViewed([]));
   }, [user]);
 
+  // 브라우저 뒤로가기(popstate)로 view가 바뀔 때는 URL이 이미 맞는 상태라 history를 다시 안 건드림 —
+  // 그래서 실제 화면 갱신 로직은 따로 빼서 setView(사용자 액션)와 여기 둘 다에서 씀.
+  const applyView = (v) => {
+    setViewRaw(v);
+    window.scrollTo?.(0, 0);
+  };
+
+  useEffect(() => {
+    const onPopState = () => applyView(viewFromLocation());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   const setView = (v) => {
     if (v.name === "detail" && user) {
       setRecentlyViewed((prev) => [v.id, ...prev.filter((id) => id !== v.id)].slice(0, 5));
@@ -58,8 +77,11 @@ export function useAppState() {
         /* 기록 실패해도 화면엔 큰 영향 없으니 조용히 무시 */
       });
     }
-    setViewRaw(v);
-    window.scrollTo?.(0, 0);
+    const path = viewToPath(v);
+    if (window.location.pathname + window.location.search !== path) {
+      window.history.pushState(v, "", path);
+    }
+    applyView(v);
   };
 
   const memeById = (id) => memes.find((m) => m.id === id);
