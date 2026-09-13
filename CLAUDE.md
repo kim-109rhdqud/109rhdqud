@@ -64,6 +64,7 @@
 - [docs/BACKEND.md](docs/BACKEND.md)에 실제 배포를 위한 백엔드 아키텍처 결정(Node/Express + Neon Postgres + Prisma + httpOnly 쿠키 JWT, 모노레포 구조, 데이터 모델·API 엔드포인트 초안)이 정리돼 있음. 백엔드 관련 작업 시작 전 먼저 확인할 것.
 - 이 프로젝트는 PC방 등 여러 컴퓨터를 오가며 작업함 — 세션 종료 전 항상 git commit + push, 시작 시 git pull.
 - **PC마다 node.js가 아예 설치되어 있지 않을 수 있음** (PC방 컴퓨터가 특히 그럼). PATH 문제가 아니라 진짜 미설치인지 먼저 확인할 것(`node -v`). 설치돼 있어도 방금 설치했다면 VS Code(정확히는 Claude Code 확장을 호스팅하는 프로세스)를 재시작해야 새 PATH가 반영됨 — 재시작 전에는 설치했는데도 `command not found`가 뜰 수 있음.
+- **진짜 새 PC는 git 사용자 정보(`user.name`/`user.email`)도 아예 설정 안 돼 있어서 첫 커밋 시도에서 "Author identity unknown" 에러가 남(2026-09-13 확인).** `git log --format='%an <%ae>'`로 기존 커밋 작성자를 확인해서 `git config user.name "109kim"` / `git config user.email "27174298leo@gmail.com"`로 (레포 로컬에만, `--global` 없이) 맞춰줄 것.
 - **이 PC방 컴퓨터는 `cmd.exe`/`powershell.exe` 프로세스 스폰 자체를 정책상 막아놓음 — Claude 도구뿐 아니라 사용자가 직접 여는 git bash에서도 재현됨(확인됨: 2026-09-10).** `npm run dev`/`npm run build`/`npm run lint`는 Windows에서 npm이 내부적으로 `cmd.exe /d /s /c "..."`로 스크립트를 실행하는데, 이 스폰이 막히면서 `> vite` 같은 배너 줄만 찍히고 그 이후 아무 반응 없이 조용히 멈춘다(사용자 bash에서도, Claude의 Bash 도구에서도 동일 증상: 에러 메시지 없이 그냥 멈추거나 exit 127).
   - **따라서 `npm run <script>` 대신 항상 실제 바이너리를 직접 호출할 것** — 이건 Claude 자신이 검증할 때뿐 아니라 사용자에게 실행을 안내할 때도 마찬가지임:
     - 개발 서버: `node node_modules/vite/bin/vite.js`
