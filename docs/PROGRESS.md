@@ -1,6 +1,6 @@
 # 진행 상황
 
-마지막 업데이트: 2026-09-12
+마지막 업데이트: 2026-09-13
 
 ## 완료된 것
 - 기본 뷰 구현: 홈, 검색 결과, 밈 상세, 트렌드(기간별 랭킹), 밈 사전(정렬/필터), 역사(연도별 아카이브), 로그인/회원가입(Mock), 마이페이지, 스크랩 목록(독립 화면)
@@ -36,11 +36,18 @@
 - 코드 리뷰 통과: `GET /users`가 애초엔 실명/생년월일/휴대폰까지 다 내려주고 있었던 것(불필요한 PII 노출)과 `AdminUsersView`의 미처리 promise rejection을 리뷰에서 잡아서 수정함.
 - **설계 검토 완료 — 남은 6개 기능(아래 "진행 중" 참고)의 구현 순서·아키텍처 결정까지 정리해둠.** 라우팅은 새 라이브러리(react-router 등) 대신 기존 `view` state에 `history.pushState`/`popstate`만 얹는 방식으로 결정(이 프로젝트가 지금까지 의존성을 최소로 유지해온 방향과 일치). 커스텀 기간 트렌드는 AI 기반 외부 데이터 수집 없이, 앱 자체 실사용 신호(조회수/검색량)를 매일 스냅샷으로 쌓는 자체 애널리틱스로 대체하기로 함(배포 직후엔 데이터 거의 없다는 점 사용자에게 고지 필요).
 
+## 완료된 것 (2026-09-13 세션 추가)
+- **새 PC(PC방) 세팅 재확인** — Node v24.21.0 기설치 확인. 루트/서버 모두 `node_modules` 없는 상태였어서 새로 설치: 루트는 평범한 `npm install`, 서버는 `npm install --ignore-scripts`(prisma postinstall 회피) 후 `node node_modules/prisma/build/index.js generate`.
+- **`npm install`이 성공해도 일부 패키지가 손상된 채 설치될 수 있다는 새 이슈 발견 및 해결** — `@tailwindcss/oxide-win32-x64-msvc`의 네이티브 바이너리 손상, `lucide-react` 아이콘 파일 대량 누락(4000여 개 중 1155개만 설치됨, `index.mjs` 포함) 두 건 모두 재현됨. 원인은 이 네트워크의 다운로드 불안정으로 추정. 해당 패키지(또는 전체 `node_modules`+`package-lock.json`) 재설치로 둘 다 해결. Vite의 `net use`/cmd.exe 우회 패치도 새 `node_modules`에 재적용함(둘 다 CLAUDE.md에 기록).
+- **최근 본 밈 서버 이관 — 코드 작업 완료.** `server/src/index.js`에 `/recently-viewed` 라우트 마운트, `src/lib/api.js`에 `getRecentlyViewed`/`recordRecentlyViewed` 추가, `useAppState.js`를 스크랩과 동일 패턴(로그인 시에만 서버 fetch/기록, 비로그인 추적 안 함)으로 교체하고 이제 안 쓰는 `src/lib/storage.js` 삭제(localStorage 완전히 걷어냄). 빌드/린트 클린, `curl`로 `/health`·`/recently-viewed`(401 확인)까지 서버 기동 후 확인 완료.
+- 스키마 변경분(`RecentlyViewed` 테이블) 마이그레이션 SQL도 생성해둠 — `server/prisma/migrations/20260913180750_add_recently_viewed/migration.sql`. 이 과정에서 `migrate diff --from-migrations`가 문서와 달리 shadow database(=5432 TCP)를 요구해서 이 네트워크에선 안 된다는 것 발견 → 스키마 스냅샷 두 개를 직접 비교하는 `--from-schema-datamodel` 방식으로 우회(CLAUDE.md에 상세 기록). `prisma/migrations/migration_lock.toml`이 애초에 없었던 것도 발견해서 새로 만듦.
+- **DB 마이그레이션 자체는 미적용.** `server/.env`가 이 PC에 없어서 새로 만들었는데, `JWT_SECRET`은 새로 생성해 채웠지만 `DATABASE_URL`은 Neon 대시보드에서만 얻을 수 있는 실제 값이라 자리표시자로 남겨둠 — **다음에 이 값 채우고 `node prisma/apply-migration.js prisma/migrations/20260913180750_add_recently_viewed/migration.sql` 실행할 것.** 적용 후 `curl`로 로그인 → 밈 상세 조회 → `GET /recently-viewed` 순서로 실동작 확인까지 하면 이 항목 완전히 끝남.
+
 ## 진행 중 / 다음에 할 일
 **사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
 
 1. ~~사용자 역할 관리~~ **완료** (위 참고)
-2. **최근 본 밈 서버 이관** — `RecentlyViewed` Prisma 모델은 schema.prisma에 추가해둠(`server/prisma/schema.prisma`), `server/src/routes/recentlyViewed.js`도 작성해둠. **하지만 마이그레이션 미생성·미적용(테이블 없음) + `server/src/index.js`에 라우트 마운트 안 함 + 프론트(`useAppState.js`)도 아직 연동 안 함 — 즉 지금은 죽은 코드 상태.** 다음 세션에서: `migrate diff --from-migrations`로 SQL 생성 → `node prisma/apply-migration.js <경로>`로 적용 → `index.js`에 `app.use("/recently-viewed", ...)` 추가 → `useAppState`에서 localStorage 대신 로그인 시에만 서버 fetch/기록하도록 교체(스크랩과 동일 패턴, 비로그인 추적은 하지 않음 — `MyPageView`가 어차피 로그인 필수라 이미 도달 불가능한 케이스라 단순화).
+2. ~~최근 본 밈 서버 이관~~ **코드는 완료, DB 마이그레이션 적용 + 실동작 확인만 남음** (위 2026-09-13 세션 참고 — `server/.env`에 실제 `DATABASE_URL` 채우고 `apply-migration.js` 실행)
 3. **인증마크 갱신 UI** — 백엔드 `PATCH /memes/:id/verification`은 이미 있음(에디터 전용, **curl로도 아직 검증 안 됨 — UI 만들기 전에 먼저 curl로 확인할 것**). `DetailView`에 editor/admin에게만 보이는 수정 폼 추가, `api.js`에 `updateVerification` 추가.
 4. **제보(Submission) UI** — 백엔드 `POST/GET/PATCH /submissions`도 이미 있음(**이것도 curl 미검증**). 제보 폼(이름/카테고리/한줄설명/출처링크 정도로 최소화), 내 제보 목록, 에디터 전용 승인 큐 3개 화면 신규. 승인해도 Meme 레코드 자동 생성은 안 함(STRATEGY.md 2-6 설계 유지 — 에디터가 검수 후 별도 등록).
 5. **실제 트렌드 데이터 (커스텀 기간)** — `rank.js`의 해시 기반 가짜 생성(`customRankList`)을 실제 데이터로 교체. 새 모델 `MemeDailyStat`(memeId+date+views+searches, 이벤트마다 upsert 증가) 추가, `POST /memes/:id/view`·`POST /search-events`(둘 다 비로그인 허용 — 실사용 신호라 익명도 카운트) + `GET /memes/trend/custom` 신규. `TrendView`의 커스텀 기간 분기가 동기 함수에서 비동기 fetch로 구조 자체가 바뀌는 게 이 작업의 핵심 — `rank.js`의 `customRankList`/해시 함수는 삭제. **배포 직후엔 데이터가 거의 비어있음 — UI에 그 점을 고지할 것.**
@@ -55,7 +62,7 @@
 - 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 위 순서보다 후순위.
 
 ## 알려진 한계
-- 최근 본 밈은 여전히 브라우저별 localStorage에만 저장(위 "진행 중" 2번 참고 — 다음에 서버로 이관 예정, 더 이상 "일부러 미룸"이 아니라 "다음 순번")
+- 최근 본 밈은 코드상 서버 연동은 끝났지만 DB 마이그레이션 미적용이라 아직 실제로는 동작 안 함(위 "진행 중" 2번 참고 — `DATABASE_URL` 채우고 마이그레이션 적용하면 끝)
 - 라우팅 라이브러리 없음 — URL 공유, 브라우저 뒤로가기 불가(위 "진행 중" 6번에서 해결 예정)
 - 커스텀 기간 트렌드는 가짜 데이터(위 "진행 중" 5번에서 실제 데이터로 교체 예정)
 - 최초 admin 계정 부트스트랩은 여전히 DB 직접 수정 필요(그 이후 승격은 관리 화면으로 가능)

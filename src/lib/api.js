@@ -97,3 +97,12 @@ export function addScrap(memeId) {
 export function removeScrap(memeId) {
   return request(`/scraps/${memeId}`, { method: "DELETE" });
 }
+
+export async function getRecentlyViewed() {
+  const memes = await request("/recently-viewed");
+  return memes.map(normalizeMeme);
+}
+
+export function recordRecentlyViewed(memeId) {
+  return request(`/recently-viewed/${memeId}`, { method: "POST" });
+}

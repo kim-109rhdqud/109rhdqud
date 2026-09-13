@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
-import { loadStored, saveStored } from "../lib/storage";
-import { logout as apiLogout, me, getMemes, getScraps, addScrap, removeScrap } from "../lib/api";
+import {
+  logout as apiLogout,
+  me,
+  getMemes,
+  getScraps,
+  addScrap,
+  removeScrap,
+  getRecentlyViewed,
+  recordRecentlyViewed,
+} from "../lib/api";
 
 export function useAppState() {
   const [view, setViewRaw] = useState({ name: "home" });
@@ -12,7 +20,9 @@ export function useAppState() {
   const [memesLoading, setMemesLoading] = useState(true);
   // 스크랩은 이제 서버(DB)가 정본 — 로그인 필요, localStorage엔 더 이상 안 남김.
   const [scraps, setScraps] = useState([]);
-  const [recentlyViewed, setRecentlyViewed] = useState(() => loadStored("recentlyViewed", []));
+  // 최근 본 밈도 스크랩과 동일 패턴: 서버(DB)가 정본, 로그인 시에만 채워짐 —
+  // 비로그인 추적은 안 함(마이페이지가 어차피 로그인 필수라 도달 불가능한 경우라 단순화).
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
 
   useEffect(() => {
     me().then((u) => {
@@ -33,11 +43,17 @@ export function useAppState() {
     ids.then(setScraps).catch(() => setScraps([]));
   }, [user]);
 
-  useEffect(() => saveStored("recentlyViewed", recentlyViewed), [recentlyViewed]);
+  useEffect(() => {
+    const ids = user ? getRecentlyViewed().then((list) => list.map((m) => m.id)) : Promise.resolve([]);
+    ids.then(setRecentlyViewed).catch(() => setRecentlyViewed([]));
+  }, [user]);
 
   const setView = (v) => {
-    if (v.name === "detail") {
+    if (v.name === "detail" && user) {
       setRecentlyViewed((prev) => [v.id, ...prev.filter((id) => id !== v.id)].slice(0, 5));
+      recordRecentlyViewed(v.id).catch(() => {
+        /* 기록 실패해도 화면엔 큰 영향 없으니 조용히 무시 */
+      });
     }
     setViewRaw(v);
     window.scrollTo?.(0, 0);

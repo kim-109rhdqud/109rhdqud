@@ -7,6 +7,7 @@ import memeRoutes from "./routes/memes.js";
 import scrapRoutes from "./routes/scraps.js";
 import submissionRoutes from "./routes/submissions.js";
 import userRoutes from "./routes/users.js";
+import recentlyViewedRoutes from "./routes/recentlyViewed.js";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/memes", memeRoutes);
 app.use("/scraps", scrapRoutes);
 app.use("/submissions", submissionRoutes);
 app.use("/users", userRoutes);
+app.use("/recently-viewed", recentlyViewedRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: "존재하지 않는 경로야" });
