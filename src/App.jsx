@@ -62,7 +62,7 @@ export default function App() {
           {view.name === "trend" && <TrendView setView={setView} memes={memes} />}
           {view.name === "dictionary" && <DictionaryView setView={setView} memes={memes} />}
           {view.name === "archive" && <ArchiveView setView={setView} memes={memes} />}
-          {view.name === "auth" && <AuthView setView={setView} onAuth={setUser} />}
+          {view.name === "auth" && <AuthView setView={setView} onAuth={setUser} oauthError={view.error} />}
           {view.name === "verifyEmail" && <VerifyEmailView token={view.token} setView={setView} setUser={setUser} />}
           {view.name === "mypage" && (
             <MyPageView
@@ -74,7 +74,9 @@ export default function App() {
               memeById={memeById}
             />
           )}
-          {view.name === "editProfile" && <EditProfileView user={user} onUpdate={setUser} setView={setView} />}
+          {view.name === "editProfile" && (
+            <EditProfileView user={user} onUpdate={setUser} setView={setView} linked={view.linked} linkError={view.linkError} />
+          )}
           {view.name === "scraps" && (
             <ScrapsView user={user} scraps={scraps} toggleScrap={toggleScrap} setView={setView} memeById={memeById} />
           )}

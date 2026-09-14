@@ -1,10 +1,21 @@
 import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { login, signup } from "../lib/api";
+import { login, signup, API_BASE_URL } from "../lib/api";
 
 const SUCCESS_DELAY_MS = 700;
 
-export function AuthView({ setView, onAuth }) {
+// 소셜 로그인은 "연동"에 한해서만 로그인 수단으로 동작함(신규 계정 자동 생성 안 함) —
+// 아직 연동을 안 해본 사람이 눌렀을 때 뜨는 안내 메시지.
+const OAUTH_ERROR_MESSAGES = {
+  kakao_not_linked: "아직 카카오로 연동해둔 계정이 없어. 먼저 회원가입하고 마이페이지에서 연동해줘.",
+  google_not_linked: "아직 구글로 연동해둔 계정이 없어. 먼저 회원가입하고 마이페이지에서 연동해줘.",
+  kakao_failed: "카카오 로그인 중 문제가 생겼어. 다시 시도해줘.",
+  google_failed: "구글 로그인 중 문제가 생겼어. 다시 시도해줘.",
+  kakao_unconfigured: "카카오 로그인이 아직 설정 안 됐어.",
+  google_unconfigured: "구글 로그인이 아직 설정 안 됐어.",
+};
+
+export function AuthView({ setView, onAuth, oauthError }) {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -63,6 +74,9 @@ export function AuthView({ setView, onAuth }) {
       </div>
 
       <div className="surface-card p-6 sm:p-7">
+        {oauthError && OAUTH_ERROR_MESSAGES[oauthError] && (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">{OAUTH_ERROR_MESSAGES[oauthError]}</p>
+        )}
         <div className="flex gap-1 mb-6 bg-neutral-100 rounded-full p-1">
           {["login", "signup"].map((m) => (
             <button
@@ -149,6 +163,33 @@ export function AuthView({ setView, onAuth }) {
             {submitting ? "처리 중..." : mode === "login" ? "로그인" : "가입하기"}
           </button>
         </form>
+
+        {mode === "login" && (
+          <>
+            <div className="flex items-center gap-3 my-5">
+              <div className="h-px bg-neutral-100 flex-1" />
+              <span className="text-xs text-neutral-400">또는</span>
+              <div className="h-px bg-neutral-100 flex-1" />
+            </div>
+            <p className="text-xs text-neutral-400 text-center mb-3">
+              소셜 로그인은 이미 연동해둔 계정이 있을 때만 돼 — 처음이면 먼저 회원가입해줘.
+            </p>
+            <div className="space-y-2">
+              <a
+                href={`${API_BASE_URL}/auth/kakao`}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium bg-[#FEE500] text-[#191600] hover:brightness-95 transition-all"
+              >
+                카카오로 로그인
+              </a>
+              <a
+                href={`${API_BASE_URL}/auth/google`}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium ring-1 ring-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-all"
+              >
+                구글로 로그인
+              </a>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

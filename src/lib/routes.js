@@ -22,7 +22,12 @@ const ROUTES = [
   { name: "trend", pattern: /^\/trend$/, toPath: () => "/trend", fromMatch: () => ({ name: "trend" }) },
   { name: "dictionary", pattern: /^\/dictionary$/, toPath: () => "/dictionary", fromMatch: () => ({ name: "dictionary" }) },
   { name: "archive", pattern: /^\/archive$/, toPath: () => "/archive", fromMatch: () => ({ name: "archive" }) },
-  { name: "auth", pattern: /^\/login$/, toPath: () => "/login", fromMatch: () => ({ name: "auth" }) },
+  {
+    name: "auth",
+    pattern: /^\/login$/,
+    toPath: () => "/login",
+    fromMatch: (_m, params) => ({ name: "auth", error: params.get("error") ?? "" }),
+  },
   {
     name: "verifyEmail",
     pattern: /^\/verify-email$/,
@@ -30,7 +35,16 @@ const ROUTES = [
     fromMatch: (_m, params) => ({ name: "verifyEmail", token: params.get("token") ?? "" }),
   },
   { name: "mypage", pattern: /^\/mypage$/, toPath: () => "/mypage", fromMatch: () => ({ name: "mypage" }) },
-  { name: "editProfile", pattern: /^\/edit-profile$/, toPath: () => "/edit-profile", fromMatch: () => ({ name: "editProfile" }) },
+  {
+    name: "editProfile",
+    pattern: /^\/edit-profile$/,
+    toPath: () => "/edit-profile",
+    fromMatch: (_m, params) => ({
+      name: "editProfile",
+      linked: params.get("linked") ?? "",
+      linkError: params.get("linkError") ?? "",
+    }),
+  },
   { name: "scraps", pattern: /^\/scraps$/, toPath: () => "/scraps", fromMatch: () => ({ name: "scraps" }) },
   { name: "admin", pattern: /^\/admin$/, toPath: () => "/admin", fromMatch: () => ({ name: "admin" }) },
   { name: "submit", pattern: /^\/submit$/, toPath: () => "/submit", fromMatch: () => ({ name: "submit" }) },
