@@ -59,6 +59,11 @@
 - **Vercel 배포 완료.** 2FA는 이미 통과된 상태였음(지난 세션 우려와 달리 이번엔 로그인만으로 바로 대시보드 진입). 레포 import → Environment Variables에 `VITE_API_URL=https://trend-book.onrender.com` 자동 감지된 값 그대로 Deploy. 프로덕션 URL: `https://109rhdqud.vercel.app`.
 - Render의 `CLIENT_ORIGIN`을 Vercel URL로 갱신 → 자동 재배포 성공 확인(로그 확인: `prisma generate` postinstall 정상 실행, `npm start`로 서비스 기동).
 - **end-to-end 최종 확인 완료** — 실제 Vercel URL에서 로그인 세션 유지(admin 계정으로 로그인된 상태 확인), 밈 사전 페이지 실제 DB 데이터 정상 로드(CORS 정상), 밈 상세 페이지 진입 후 새로고침해도 404 없이 정상 로드(URL 라우팅 확인), 스크랩 추가/조회 정상 동작까지 사용자가 직접 브라우저로 확인. **배포 완전히 끝남.**
+- **배포 후 코드 리뷰로 보안 취약점 발견 및 수정** — 로그인/회원가입에 rate limit이 전혀 없어서(실명/생년월일/휴대전화까지 수집하는 앱이 무제한 로그인 시도에 노출된 상태) `express-rate-limit`으로 IP당 15분/10회 제한 추가, Render 프록시 뒤에서 실제 클라이언트 IP를 보려고 `trust proxy` 설정도 같이 켬. 로컬 curl로 `RateLimit-Remaining` 헤더 감소하는 것까지 확인.
+- **이메일 인증 추가.** 회원가입 시 24시간 유효 토큰 발급 + Resend HTTPS API로 인증 메일 발송(SMTP 대신 443 포트만 씀 — 이 네트워크 제약과 같은 이유). `POST /auth/verify-email`·`POST /auth/resend-verification` 신규, 이메일 변경 시 재인증 필요하도록 `emailVerified` 초기화. 프론트에 인증 링크 처리 화면([VerifyEmailView](../src/pages/VerifyEmailView.jsx))과 마이페이지 인증 배지/재발송 버튼 추가. 로컬에서 가입→DB에서 토큰 조회→인증→`/auth/me` 반영 확인, 잘못된 토큰 거부까지 전부 curl로 검증(테스트 계정은 정리함).
+- **카카오/구글 소셜 로그인 추가 — "연동 전용"으로 설계(사용자 요구사항).** 소셜 로그인만으로는 절대 새 계정이 안 만들어지고, 정식 회원가입(실명/생년월일/휴대전화 다 받는 폼)을 거친 계정에 미리 연동해둔 경우에만 로그인 수단으로 동작함. 로그인된 상태에서 소셜 버튼을 누르면 "연동", 비로그인 상태면 "연동된 계정 있을 때만 로그인, 없으면 에러"로 서버가 쿠키 유무로 분기(`server/src/routes/oauth.js`). 카카오는 계정 매칭에 이메일이 필요 없다는 걸 확인해서(이메일 동의 항목은 비즈니스 인증 없인 막혀있음) 카카오 고유 회원번호만으로 처리 — `account_email` 동의 신청 자체를 스킵함. 카카오 디벨로퍼스/Google Cloud Console 앱 등록은 사용자가 화면 보면서 직접 진행, 콜백 리다이렉트 URI까지 등록 완료. 로컬에서 `/auth/kakao`·`/auth/google`이 올바른 authorize URL로 리다이렉트하는 것까지 curl로 확인 — **실제 동의 화면까지 거치는 전체 흐름은 브라우저에서 아직 최종 확인 전.**
+- 위 세 가지 전부 build/lint 클린, 커밋+push 완료.
+- **아직 안 한 것**: Render(운영) Environment에 `RESEND_API_KEY`/`RESEND_FROM_EMAIL`/`SERVER_ORIGIN`/`KAKAO_REST_API_KEY`/`KAKAO_CLIENT_SECRET`/`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` 추가 필요(로컬 `.env`에만 넣어둔 상태) — 추가 안 하면 운영 서버에서 이메일 인증/소셜 로그인 안 됨. 추가 후 실제 Vercel URL에서 카카오/구글 연동→로그인까지 브라우저로 최종 확인 필요.
 
 ## 진행 중 / 다음에 할 일
 **사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
