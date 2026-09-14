@@ -54,6 +54,14 @@ export async function me() {
   }
 }
 
+export function verifyEmail(token) {
+  return request("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) });
+}
+
+export function resendVerificationEmail() {
+  return request("/auth/resend-verification", { method: "POST" });
+}
+
 // 서버의 Meme 모델(popularity가 buzz/search/usage/trend로 평탄화, rank가 MemeRank[] 배열)을
 // 프론트가 원래 쓰던 src/data/memes.js의 Mock 데이터 형태(popularity 객체, rank가 기간별 키 객체)로 맞춰줌.
 // 이 변환 덕분에 페이지 컴포넌트들은 데이터 출처가 정적 import든 API든 신경 안 써도 됨.

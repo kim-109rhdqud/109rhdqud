@@ -23,6 +23,12 @@ const ROUTES = [
   { name: "dictionary", pattern: /^\/dictionary$/, toPath: () => "/dictionary", fromMatch: () => ({ name: "dictionary" }) },
   { name: "archive", pattern: /^\/archive$/, toPath: () => "/archive", fromMatch: () => ({ name: "archive" }) },
   { name: "auth", pattern: /^\/login$/, toPath: () => "/login", fromMatch: () => ({ name: "auth" }) },
+  {
+    name: "verifyEmail",
+    pattern: /^\/verify-email$/,
+    toPath: () => "/verify-email",
+    fromMatch: (_m, params) => ({ name: "verifyEmail", token: params.get("token") ?? "" }),
+  },
   { name: "mypage", pattern: /^\/mypage$/, toPath: () => "/mypage", fromMatch: () => ({ name: "mypage" }) },
   { name: "editProfile", pattern: /^\/edit-profile$/, toPath: () => "/edit-profile", fromMatch: () => ({ name: "editProfile" }) },
   { name: "scraps", pattern: /^\/scraps$/, toPath: () => "/scraps", fromMatch: () => ({ name: "scraps" }) },

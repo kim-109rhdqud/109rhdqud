@@ -1,9 +1,29 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { prisma } from "../lib/prisma.js";
 import { signToken, authCookieOptions } from "../lib/jwt.js";
 import { requireAuth } from "../middleware/auth.js";
+import { sendVerificationEmail } from "../lib/email.js";
+
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+
+function makeVerificationFields() {
+  return {
+    emailVerificationToken: crypto.randomBytes(32).toString("hex"),
+    emailVerificationExpiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS),
+  };
+}
+
+// 메일 발송 실패(도메인 미인증 등)가 회원가입/재발송 자체를 막으면 안 돼서 항상 best-effort로 처리.
+async function trySendVerificationEmail(user, token) {
+  try {
+    await sendVerificationEmail(user, token);
+  } catch (err) {
+    console.error("인증 메일 발송 실패:", err.message);
+  }
+}
 
 const router = Router();
 
@@ -28,6 +48,9 @@ export function publicUser(user) {
     birthDate: user.birthDate,
     phone: user.phone,
     role: user.role,
+    emailVerified: user.emailVerified,
+    kakaoLinked: !!user.kakaoId,
+    googleLinked: !!user.googleId,
   };
 }
 
@@ -64,9 +87,11 @@ router.post("/signup", authLimiter, async (req, res, next) => {
     if (conflictMessage) return res.status(409).json({ error: conflictMessage });
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const verificationFields = makeVerificationFields();
     const user = await prisma.user.create({
-      data: { email, nickname, username, realName, birthDate: parsedBirthDate, phone, passwordHash },
+      data: { email, nickname, username, realName, birthDate: parsedBirthDate, phone, passwordHash, ...verificationFields },
     });
+    await trySendVerificationEmail(user, verificationFields.emailVerificationToken);
 
     const token = signToken({ sub: user.id });
     res.cookie("token", token, authCookieOptions);
@@ -104,7 +129,8 @@ router.get("/me", requireAuth, (req, res) => {
 });
 
 // 내 정보 수정. 아이디/생년월일은 신원 확인용 고정값으로 보고 여기선 안 바꿈 —
-// 닉네임/이메일/실명/휴대전화번호만 수정 가능.
+// 닉네임/이메일/실명/휴대전화번호만 수정 가능. 이메일을 바꾸면 재인증이 필요해서 emailVerified를
+// 초기화하고 새 인증 메일을 보냄(안 그러면 바꾼 이메일이 "인증됨"으로 잘못 표시됨).
 router.patch("/me", requireAuth, async (req, res, next) => {
   try {
     const { nickname, email, realName, phone } = req.body;
@@ -115,11 +141,50 @@ router.patch("/me", requireAuth, async (req, res, next) => {
     const conflictMessage = await findConflict({ email, username: req.user.username, phone }, req.user.id);
     if (conflictMessage) return res.status(409).json({ error: conflictMessage });
 
+    const emailChanged = email !== req.user.email;
+    const verificationFields = emailChanged
+      ? { emailVerified: false, ...makeVerificationFields() }
+      : {};
+
     const updated = await prisma.user.update({
       where: { id: req.user.id },
-      data: { nickname, email, realName, phone },
+      data: { nickname, email, realName, phone, ...verificationFields },
     });
+    if (emailChanged) await trySendVerificationEmail(updated, verificationFields.emailVerificationToken);
     res.json(publicUser(updated));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/verify-email", async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: "인증 토큰이 없어" });
+
+    const user = await prisma.user.findUnique({ where: { emailVerificationToken: token } });
+    if (!user || !user.emailVerificationExpiresAt || user.emailVerificationExpiresAt < new Date()) {
+      return res.status(400).json({ error: "인증 링크가 유효하지 않거나 만료됐어" });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: true, emailVerificationToken: null, emailVerificationExpiresAt: null },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/resend-verification", requireAuth, authLimiter, async (req, res, next) => {
+  try {
+    if (req.user.emailVerified) return res.status(400).json({ error: "이미 인증된 이메일이야" });
+
+    const verificationFields = makeVerificationFields();
+    const updated = await prisma.user.update({ where: { id: req.user.id }, data: verificationFields });
+    await trySendVerificationEmail(updated, verificationFields.emailVerificationToken);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

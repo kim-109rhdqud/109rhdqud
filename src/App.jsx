@@ -8,6 +8,7 @@ import { TrendView } from "./pages/TrendView";
 import { DictionaryView } from "./pages/DictionaryView";
 import { ArchiveView } from "./pages/ArchiveView";
 import { AuthView } from "./pages/AuthView";
+import { VerifyEmailView } from "./pages/VerifyEmailView";
 import { MyPageView } from "./pages/MyPageView";
 import { EditProfileView } from "./pages/EditProfileView";
 import { ScrapsView } from "./pages/ScrapsView";
@@ -62,6 +63,7 @@ export default function App() {
           {view.name === "dictionary" && <DictionaryView setView={setView} memes={memes} />}
           {view.name === "archive" && <ArchiveView setView={setView} memes={memes} />}
           {view.name === "auth" && <AuthView setView={setView} onAuth={setUser} />}
+          {view.name === "verifyEmail" && <VerifyEmailView token={view.token} setView={setView} setUser={setUser} />}
           {view.name === "mypage" && (
             <MyPageView
               user={user}

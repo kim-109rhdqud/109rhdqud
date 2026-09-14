@@ -41,6 +41,17 @@ model User {
   role         Role     @default(user)
   createdAt    DateTime @default(now())
 
+  // 이메일 인증 (2026-09-14 추가). 토큰은 발급할 때마다 새로 덮어씀 — 재발송하면 이전 토큰은 무효화됨.
+  emailVerified              Boolean   @default(false)
+  emailVerificationToken     String?   @unique
+  emailVerificationExpiresAt DateTime?
+
+  // 카카오/구글 연동용 provider user id (2026-09-14 추가). 이 컬럼이 채워져 있으면
+  // "연동된 계정"이라는 뜻 — 회원가입은 여전히 일반 폼으로만 가능하고, 소셜 로그인은
+  // 이미 연동된 계정에 한해서만 로그인 수단으로 동작함(신규 가입 우회 방지).
+  kakaoId  String? @unique
+  googleId String? @unique
+
   scraps            Scrap[]
   recentlyViewed    RecentlyViewed[]
   submissions       Submission[] @relation("SubmittedBy")
