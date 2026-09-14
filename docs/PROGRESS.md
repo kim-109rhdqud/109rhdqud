@@ -67,6 +67,14 @@
 - **아직 안 한 것**: Render(운영) Environment에 `RESEND_API_KEY`/`RESEND_FROM_EMAIL`/`SERVER_ORIGIN`/`KAKAO_REST_API_KEY`/`KAKAO_CLIENT_SECRET`/`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` 추가 필요(로컬 `.env`에만 넣어둔 상태) — 추가 안 하면 운영 서버에서 이메일 인증/소셜 로그인 안 됨(`SERVER_ORIGIN` 빠져서 redirect_uri가 localhost로 나오는 것까지 실제로 확인함). 추가 후 실제 Vercel URL에서 카카오/구글로 새 계정 생성 → 온보딩 → 로그아웃 → 재로그인까지 브라우저로 최종 확인 필요. 이메일 인증도 Resend 샌드박스 제한(도메인 미인증 시 계정 이메일로만 수신) 때문에 실제 수신 여부 재확인 필요.
 
 ## 진행 중 / 다음에 할 일
+
+### 지금 당장 안 되는 것 (2026-09-15, 다음 세션 최우선)
+- **이메일 인증** — 메일이 실제로 안 옴. Resend 샌드박스 제한(도메인 미인증 시 Resend 가입 계정 본인 이메일로만 수신됨) + Render Environment에 `RESEND_API_KEY` 등이 제대로 들어갔는지 재확인 필요.
+- **카카오 로그인 / 구글 로그인 둘 다 안 됨** — Render Environment에 `SERVER_ORIGIN`이 빠져있어서 OAuth redirect_uri가 배포 주소가 아니라 `localhost:4000`으로 나가는 것까지 확인함(2026-09-14). `SERVER_ORIGIN=https://trend-book.onrender.com`과 `KAKAO_REST_API_KEY`/`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`이 실제로 저장됐는지 다시 확인할 것.
+- **로컬에 커밋 안 된 작업 있음** — "이메일 인증을 해야 로그인되게" 요청에 따라 `server/src/routes/auth.js`(회원가입 시 자동 로그인 제거 + `emailVerified`false면 로그인 거부 + 로그인 전 재발송용 `POST /auth/resend-verification-by-username` 추가)는 다 만들어서 curl로 끝까지 검증까지 마쳤는데, 프론트(`src/pages/AuthView.jsx`, `src/lib/api.js`)는 그에 맞춰 화면을 아직 못 고침 — **이 상태로 커밋/배포하면 회원가입 화면이 깨짐(서버가 더 이상 가입 즉시 로그인 응답을 안 주는데 프론트는 여전히 그걸 기대함)**. 그래서 일부러 커밋 안 하고 로컬에만 남겨둠. 다음 세션에서 AuthView.jsx 마무리(가입 성공 시 "메일함 확인해줘" 화면 + 재발송 버튼, 로그인이 "이메일 미인증"으로 막히면 재발송 버튼 보여주기)부터 이어갈 것.
+- 기존 테스트 계정 6개는 admin만 남기고 전부 삭제함(2026-09-15) — 연결된 제보(Submission) 2건도 같이 지워야 삭제가 됐음(FK 제약). 문제 되는 부분 아님, 정리 목적.
+
+### 완료된 6개 기능
 **사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
 
 1. ~~사용자 역할 관리~~ **완료** (위 참고)
