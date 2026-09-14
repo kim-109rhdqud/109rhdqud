@@ -1,10 +1,22 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import rateLimit from "express-rate-limit";
 import { prisma } from "../lib/prisma.js";
 import { signToken, authCookieOptions } from "../lib/jwt.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
+
+// 로그인/회원가입 무차별 대입 방지 — IP당 15분에 10회. 성공한 요청은 카운트에서 빼서
+// 정상적으로 여러 번 로그인하는 사용자가 차단당하지 않게 함.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: "시도가 너무 많아. 15분 후 다시 시도해줘" },
+});
 
 export function publicUser(user) {
   return {
@@ -34,7 +46,7 @@ async function findConflict({ email, username, phone }, excludeId) {
   return "이미 사용 중인 정보가 있어";
 }
 
-router.post("/signup", async (req, res, next) => {
+router.post("/signup", authLimiter, async (req, res, next) => {
   try {
     const { email, password, nickname, username, realName, birthDate, phone } = req.body;
     if (!email || !password || !nickname || !username || !realName || !birthDate || !phone) {
@@ -65,7 +77,7 @@ router.post("/signup", async (req, res, next) => {
 });
 
 // 이메일이 아니라 아이디(username)로 로그인함.
-router.post("/login", async (req, res, next) => {
+router.post("/login", authLimiter, async (req, res, next) => {
   try {
     const { username, password } = req.body;
     const user = await prisma.user.findUnique({ where: { username } });

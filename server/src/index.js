@@ -12,6 +12,10 @@ import recentlyViewedRoutes from "./routes/recentlyViewed.js";
 const app = express();
 
 const isProd = process.env.NODE_ENV === "production";
+// Render는 요청을 프록시 뒤에서 넘겨주므로, express-rate-limit이 실제 클라이언트 IP(X-Forwarded-For)를
+// 보게 하려면 이걸 켜야 함 — 안 그러면 모든 요청이 프록시 IP 하나로 잡혀서 rate limit이 전체 유저에
+// 한꺼번에 걸리거나 무의미해짐.
+if (isProd) app.set("trust proxy", 1);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
 // Vite 개발 서버는 포트가 자꾸 바뀌어서(5173이 이미 쓰이고 있으면 5174, 5175... 식으로 올라감)
