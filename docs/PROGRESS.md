@@ -1,6 +1,6 @@
 # 진행 상황
 
-마지막 업데이트: 2026-09-13
+마지막 업데이트: 2026-09-14
 
 ## 완료된 것
 - 기본 뷰 구현: 홈, 검색 결과, 밈 상세, 트렌드(기간별 랭킹), 밈 사전(정렬/필터), 역사(연도별 아카이브), 로그인/회원가입(Mock), 마이페이지, 스크랩 목록(독립 화면)
@@ -53,7 +53,12 @@
   - 루트에 `vercel.json`(SPA rewrite) 추가 — 실제 경로가 생겼으니 배포 후 `/meme/:id` 같은 딥링크 새로고침 시 404 안 나게.
   - **Render 배포 성공 + 검증 완료**: `https://trend-book.onrender.com` — `/health` 200, `/memes` 9개 정상 반환(Neon 연결 확인). 환경변수: `DATABASE_URL`/`JWT_SECRET`/`NODE_ENV=production` 설정 완료, `CLIENT_ORIGIN`은 아직 플레이스홀더(Vercel URL 나오면 업데이트 필요).
   - **Vercel은 GitHub 레포 연결까지 진행했는데 계정 2FA(인증 앱) 설정 화면에서 멈춤 — 휴대폰이 있어야 진행 가능해서 다음 세션으로 미룸.**
-  - **다음에 이어서 할 일(순서대로)**: ① 폰으로 Vercel 2FA(Authenticator 앱) 설정 → ② Vercel에서 레포 import, Environment Variables에 `VITE_API_URL=https://trend-book.onrender.com` 추가 → ③ Deploy → ④ 나온 Vercel URL을 Render의 `CLIENT_ORIGIN` 환경변수에 넣고 저장(자동 재배포됨) → ⑤ 실제 Vercel URL로 회원가입/로그인/밈 상세 새로고침(라우팅 확인)/스크랩까지 end-to-end 확인.
+
+## 완료된 것 (2026-09-14 세션 추가)
+- **새 PC 세팅** — Node v24.21.0 기설치 확인, git identity도 이미 설정돼 있었음(`109kim`). 루트 `npm install` + 서버 `npm install --ignore-scripts` → `prisma generate` 수동 실행, Vite `net use` 패치 재적용, build/lint 클린 확인. 루트/서버 `.env` 템플릿에서 새로 생성 — `DATABASE_URL`(Neon pooled connection string)과 `JWT_SECRET`은 사용자가 보관해둔 값 붙여넣음.
+- **Vercel 배포 완료.** 2FA는 이미 통과된 상태였음(지난 세션 우려와 달리 이번엔 로그인만으로 바로 대시보드 진입). 레포 import → Environment Variables에 `VITE_API_URL=https://trend-book.onrender.com` 자동 감지된 값 그대로 Deploy. 프로덕션 URL: `https://109rhdqud.vercel.app`.
+- Render의 `CLIENT_ORIGIN`을 Vercel URL로 갱신 → 자동 재배포 성공 확인(로그 확인: `prisma generate` postinstall 정상 실행, `npm start`로 서비스 기동).
+- **end-to-end 최종 확인 완료** — 실제 Vercel URL에서 로그인 세션 유지(admin 계정으로 로그인된 상태 확인), 밈 사전 페이지 실제 DB 데이터 정상 로드(CORS 정상), 밈 상세 페이지 진입 후 새로고침해도 404 없이 정상 로드(URL 라우팅 확인), 스크랩 추가/조회 정상 동작까지 사용자가 직접 브라우저로 확인. **배포 완전히 끝남.**
 
 ## 진행 중 / 다음에 할 일
 **사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
@@ -64,9 +69,7 @@
 4. ~~제보(Submission) UI~~ **완료** (제보 폼/내 제보 목록/승인 큐 3화면 + 승인된 제보를 실제 밈으로 등록하는 화면까지, 위 참고)
 5. **실제 트렌드 데이터 (커스텀 기간)** — `rank.js`의 해시 기반 가짜 생성(`customRankList`)을 실제 데이터로 교체. 새 모델 `MemeDailyStat`(memeId+date+views+searches, 이벤트마다 upsert 증가) 추가, `POST /memes/:id/view`·`POST /search-events`(둘 다 비로그인 허용 — 실사용 신호라 익명도 카운트) + `GET /memes/trend/custom` 신규. `TrendView`의 커스텀 기간 분기가 동기 함수에서 비동기 fetch로 구조 자체가 바뀌는 게 이 작업의 핵심 — `rank.js`의 `customRankList`/해시 함수는 삭제. **배포 직후엔 데이터가 거의 비어있음 — UI에 그 점을 고지할 것.**
 6. ~~실제 URL 라우팅~~ **완료** (위 참고)
-7. **배포 — 진행 중, 다음 세션에 이어갈 것.** 자세한 내용/정확한 재개 순서는 위 "완료된 것" 마지막 항목 참고.
-   - ~~백엔드(Render)~~ **완료** — `https://trend-book.onrender.com`, `/health`·`/memes` 확인됨.
-   - **프론트(Vercel) — 중단.** GitHub 레포 연결까지는 됐는데 Vercel 계정 2FA(Authenticator 앱) 설정 화면에서 멈춤(휴대폰 필요). 다음 세션 시작하면: 폰으로 2FA 설정 → 레포 import → `VITE_API_URL` 환경변수(Render URL) → Deploy → Vercel URL 나오면 Render의 `CLIENT_ORIGIN` 갱신 → 실제 브라우저로 전체 흐름(가입/로그인/밈 상세 새로고침/스크랩) 최종 확인.
+7. ~~배포~~ **완료** — 백엔드(Render) `https://trend-book.onrender.com`, 프론트(Vercel) `https://109rhdqud.vercel.app`. `CLIENT_ORIGIN` 연결 + end-to-end 확인까지 전부 끝남(위 2026-09-14 세션 항목 참고).
 
 설계 검토 결과 전문은 이 세션 대화에만 있고 별도 문서화는 안 함 — 다음 세션에서 이어갈 때 위 요약이면 충분할 것.
 
@@ -76,7 +79,6 @@
 - 원본 소재 라이브러리(효과음·자료화면), 프리미엄/B2B 수익모델은 아직 어떤 화면/기능으로 구현할지 미정 — 위 순서보다 후순위.
 
 ## 알려진 한계
-- 아직 실제 배포 전(위 "진행 중" 7번 참고 — 백엔드는 떠 있고 프론트만 남음)
 - 커스텀 기간 트렌드는 가짜 데이터(위 "진행 중" 5번에서 실제 데이터로 교체 예정)
 - 최초 admin 계정 부트스트랩은 여전히 DB 직접 수정 필요(그 이후 승격은 관리 화면으로 가능)
 - 등록된 밈을 수정/삭제하는 UI가 없음(잘못 등록하면 DB 직접 수정 필요) — 아직 누구도 요청 안 해서 후순위

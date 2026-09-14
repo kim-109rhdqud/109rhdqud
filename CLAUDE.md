@@ -1,6 +1,6 @@
 # 유행도감 (Trend Encyclopedia)
 
-요즘 유행하는 밈·유행어·상품·인물·챌린지를 검색하고 둘러볼 수 있는 React 웹앱. 프로토타입 단계에서 실제 배포 단계로 전환 중 — 로그인/회원가입, 밈 데이터 조회, 스크랩, 최근 본 밈, 사용자 역할 관리, 제보(밈 제안)와 승인된 제보의 실제 밈 등록, 인증마크 갱신까지 전부 실제 백엔드에 연동되고 curl로 실동작 확인 완료. 실제 URL 라우팅(`history.pushState`)도 구현 완료. **배포는 진행 중** — 백엔드는 Render에 떠 있음(`https://trend-book.onrender.com`), 프론트(Vercel)는 계정 2FA 설정에서 중단(다음 세션에 이어갈 것, [docs/PROGRESS.md](docs/PROGRESS.md) 참고). 실제 트렌드 애널리틱스는 아직임.
+요즘 유행하는 밈·유행어·상품·인물·챌린지를 검색하고 둘러볼 수 있는 React 웹앱. 프로토타입 단계에서 실제 배포 단계로 전환 중 — 로그인/회원가입, 밈 데이터 조회, 스크랩, 최근 본 밈, 사용자 역할 관리, 제보(밈 제안)와 승인된 제보의 실제 밈 등록, 인증마크 갱신까지 전부 실제 백엔드에 연동되고 curl로 실동작 확인 완료. 실제 URL 라우팅(`history.pushState`)도 구현 완료. **배포 완료** — 백엔드는 Render(`https://trend-book.onrender.com`), 프론트는 Vercel(`https://109rhdqud.vercel.app`)에 떠 있고 실제 브라우저로 로그인/밈 사전 조회/상세 페이지 새로고침(라우팅)/스크랩까지 end-to-end 확인 완료(2026-09-14). 실제 트렌드 애널리틱스는 아직임(자세한 내용은 [docs/PROGRESS.md](docs/PROGRESS.md) 참고).
 
 ## 기술 스택
 - 프론트: React 19 + Vite, Tailwind CSS 4 (`@tailwindcss/vite` 플러그인), lucide-react(아이콘), oxlint(린트, TypeScript 아님 — 순수 JSX)
