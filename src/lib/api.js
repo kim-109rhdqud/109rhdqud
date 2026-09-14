@@ -54,6 +54,13 @@ export async function me() {
   }
 }
 
+export function completeProfile({ username, realName, birthDate, phone, email }) {
+  return request("/auth/complete-profile", {
+    method: "POST",
+    body: JSON.stringify({ username, realName, birthDate, phone, email }),
+  });
+}
+
 export function verifyEmail(token) {
   return request("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) });
 }

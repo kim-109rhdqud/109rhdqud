@@ -36,6 +36,12 @@ const ROUTES = [
   },
   { name: "mypage", pattern: /^\/mypage$/, toPath: () => "/mypage", fromMatch: () => ({ name: "mypage" }) },
   {
+    name: "completeProfile",
+    pattern: /^\/complete-profile$/,
+    toPath: () => "/complete-profile",
+    fromMatch: () => ({ name: "completeProfile" }),
+  },
+  {
     name: "editProfile",
     pattern: /^\/edit-profile$/,
     toPath: () => "/edit-profile",

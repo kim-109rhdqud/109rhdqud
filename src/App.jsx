@@ -9,6 +9,7 @@ import { DictionaryView } from "./pages/DictionaryView";
 import { ArchiveView } from "./pages/ArchiveView";
 import { AuthView } from "./pages/AuthView";
 import { VerifyEmailView } from "./pages/VerifyEmailView";
+import { CompleteProfileView } from "./pages/CompleteProfileView";
 import { MyPageView } from "./pages/MyPageView";
 import { EditProfileView } from "./pages/EditProfileView";
 import { ScrapsView } from "./pages/ScrapsView";
@@ -42,6 +43,12 @@ export default function App() {
         <div className="flex items-center justify-center py-32 text-neutral-400">
           <Loader2 size={22} className="animate-spin" />
         </div>
+      ) : user && !user.profileComplete ? (
+        // 카카오/구글로 막 가입한 계정은 아이디/실명/생년월일/휴대전화를 채우기 전까진
+        // 다른 화면 대신 이 온보딩만 보이게 강제함.
+        <div key="completeProfile-gate" className="page-transition">
+          <CompleteProfileView user={user} onUpdate={setUser} setView={setView} logout={logout} />
+        </div>
       ) : (
         // view가 바뀔 때마다 key도 바뀌어서 매번 새로 마운트되고, 그때 page-transition 애니메이션이 자동으로 재생됨.
         // 화면이 뚝뚝 끊기듯 바뀌는 느낌을 없애려는 용도(그냥 CSS 애니메이션이라 라이브러리 없이 처리).
@@ -64,6 +71,9 @@ export default function App() {
           {view.name === "archive" && <ArchiveView setView={setView} memes={memes} />}
           {view.name === "auth" && <AuthView setView={setView} onAuth={setUser} oauthError={view.error} />}
           {view.name === "verifyEmail" && <VerifyEmailView token={view.token} setView={setView} setUser={setUser} />}
+          {view.name === "completeProfile" && (
+            <CompleteProfileView user={user} onUpdate={setUser} setView={setView} logout={logout} />
+          )}
           {view.name === "mypage" && (
             <MyPageView
               user={user}
