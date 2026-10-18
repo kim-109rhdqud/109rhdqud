@@ -1,4 +1,5 @@
-import { Heart, Play, User } from "lucide-react";
+import { useState } from "react";
+import { Heart, Pencil, Play, Trash2, User } from "lucide-react";
 import { CategoryTag } from "../components/CategoryTag";
 import { MemeCard } from "../components/MemeCard";
 import { MetricBar } from "../components/MetricBar";
@@ -7,12 +8,32 @@ import { SectionHeading } from "../components/SectionHeading";
 import { VerificationBadge, VerificationSection } from "../components/VerificationBadge";
 import { VerificationEditForm } from "../components/VerificationEditForm";
 import { CATEGORIES } from "../data/memes";
+import { deleteMeme } from "../lib/api";
 
 export function DetailView({ id, setView, user, scraps, toggleScrap, memeById, refreshMemes }) {
   const meme = memeById(id);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   if (!meme) return <div className="max-w-3xl mx-auto px-5 py-20 text-center text-neutral-500">밈을 찾을 수 없어.</div>;
 
   const isScrapped = scraps.includes(meme.id);
+  const isEditor = user && ["editor", "admin"].includes(user.role);
+
+  // 삭제는 관리자 전용. 목록 갱신보다 화면 이동을 먼저 해서, 지워진 밈의 상세 화면이
+  // 잠깐 "밈을 찾을 수 없어"로 바뀌었다가 넘어가는 깜빡임을 없앰.
+  const handleDelete = async () => {
+    if (!window.confirm(`"${meme.name}"을(를) 삭제할까? 랭킹·인증마크·스크랩 기록도 같이 지워지고 되돌릴 수 없어.`)) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteMeme(meme.id);
+      setView({ name: "dictionary" });
+      refreshMemes();
+    } catch (err) {
+      setDeleteError(err.message);
+      setDeleting(false);
+    }
+  };
   const related = meme.relatedMemeIds.map(memeById).filter(Boolean);
   const relatedGrouped = CATEGORIES.map((cat) => ({
     cat,
@@ -40,7 +61,24 @@ export function DetailView({ id, setView, user, scraps, toggleScrap, memeById, r
           <Heart size={14} fill={isScrapped ? "white" : "none"} /> {isScrapped ? "스크랩됨" : "스크랩"}
         </button>
       </div>
-      <p className="text-neutral-500 mb-8">{meme.oneLiner}</p>
+      <p className={`text-neutral-500 ${isEditor ? "mb-3" : "mb-8"}`}>{meme.oneLiner}</p>
+      {isEditor && (
+        <div className="flex flex-wrap items-center gap-1 mb-8">
+          <button onClick={() => setView({ name: "editMeme", id: meme.id })} className="btn-ghost !px-2.5 !py-1.5 text-xs">
+            <Pencil size={13} /> 수정
+          </button>
+          {user.role === "admin" && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="btn-ghost !px-2.5 !py-1.5 text-xs hover:!bg-rose-50 hover:!text-rose-600 disabled:opacity-50"
+            >
+              <Trash2 size={13} /> {deleting ? "삭제 중..." : "삭제"}
+            </button>
+          )}
+          {deleteError && <span className="text-xs text-rose-600 ml-1">{deleteError}</span>}
+        </div>
+      )}
 
       {/* 핵심 정보 */}
       <div className="grid sm:grid-cols-3 gap-px bg-neutral-100 rounded-2xl ring-1 ring-neutral-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)] mb-12 text-sm overflow-hidden">

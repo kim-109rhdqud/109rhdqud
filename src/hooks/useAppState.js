@@ -44,7 +44,7 @@ export function useAppState() {
       .finally(() => setMemesLoading(false));
   }, []);
 
-  // 밈 등록(에디터) 직후처럼, 서버에 새로 생긴 밈을 화면 새로고침 없이 반영해야 할 때 씀.
+  // 밈 등록/수정/삭제(에디터·관리자) 직후처럼, 서버에서 바뀐 밈 목록을 화면 새로고침 없이 반영해야 할 때 씀.
   const refreshMemes = () => getMemes().then(setMemes).catch(() => {});
 
   useEffect(() => {

@@ -83,6 +83,18 @@ export default function App() {
           {view.name === "registerMeme" && (
             <RegisterMemeView user={user} setView={setView} memes={memes} refreshMemes={refreshMemes} prefill={view.prefill} />
           )}
+          {view.name === "editMeme" &&
+            (memeById(view.id) ? (
+              <RegisterMemeView
+                user={user}
+                setView={setView}
+                memes={memes}
+                refreshMemes={refreshMemes}
+                editing={memeById(view.id)}
+              />
+            ) : (
+              <div className="max-w-3xl mx-auto px-5 py-20 text-center text-neutral-500">밈을 찾을 수 없어.</div>
+            ))}
         </div>
       )}
 

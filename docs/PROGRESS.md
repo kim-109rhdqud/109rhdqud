@@ -65,19 +65,11 @@
 
 ## 2026-10-18
 - 회원가입/로그인은 아이디+비밀번호 일반 폼 하나로만 유지하기로 결정 — 그 외 가입/인증 관련 부가 기능은 코드·스키마·문서에서 전부 제거함.
+- 위 제거에 맞춰 운영 환경 정리도 완료 — 라이브 DB(Neon)에서 해당 컬럼 삭제·필수값 복구, Render 환경변수와 외부 서비스에 만들어둔 관련 앱·키 삭제(Claude in Chrome으로 진행).
+- **밈 수정/삭제 기능 추가.** 상세 페이지에 에디터 이상은 "수정"(등록 폼을 기존 값으로 채워서 재사용, `/meme/:id/edit`), 관리자는 "삭제" 버튼. 서버 `PATCH /memes/:id`(에디터)·`DELETE /memes/:id`(관리자) 신규. 밈 id는 공유 링크가 깨지지 않게 수정 불가. 삭제하면 랭킹/인증마크/스크랩/최근 본 기록이 같이 지워지고, 다른 밈의 관련 밈 목록에서도 빠지고, 이 밈으로 등록됐던 제보는 다시 등록 가능한 상태로 돌아감. DB 스키마 변경 없음.
+- 검증: 로컬 Postgres에 시드 데이터를 넣고 API 시나리오 32개(권한 401/403, 검증 400, 없는 밈 404, 기존 등록 API 회귀, 삭제 시 연관 데이터 정리)와 브라우저(Playwright) UI 시나리오 16개 전부 통과. build/lint 클린.
 
 ## 진행 중 / 다음에 할 일
-
-### 다음 세션 최우선
-- **라이브 DB(Neon) 정리 SQL 한 번 실행** — 코드/스키마에서 지운 `users` 컬럼이 DB엔 아직 남아있음(앱 동작엔 지장 없음). 아래 SQL을 임시 파일로 저장해 `node prisma/apply-migration.js <파일>`로 실행하고, 실행 후 이 항목은 지울 것. `SET NOT NULL`은 해당 컬럼이 null인 행이 있으면 실패함(admin 계정만 남아있어서 문제 없을 것).
-  ```sql
-  DROP INDEX IF EXISTS "users_emailVerificationToken_key";
-  DROP INDEX IF EXISTS "users_kakaoId_key";
-  DROP INDEX IF EXISTS "users_googleId_key";
-  ALTER TABLE "users" DROP COLUMN IF EXISTS "emailVerified", DROP COLUMN IF EXISTS "emailVerificationToken", DROP COLUMN IF EXISTS "emailVerificationExpiresAt", DROP COLUMN IF EXISTS "kakaoId", DROP COLUMN IF EXISTS "googleId";
-  ALTER TABLE "users" ALTER COLUMN "email" SET NOT NULL, ALTER COLUMN "username" SET NOT NULL, ALTER COLUMN "realName" SET NOT NULL, ALTER COLUMN "birthDate" SET NOT NULL, ALTER COLUMN "phone" SET NOT NULL, ALTER COLUMN "passwordHash" SET NOT NULL;
-  ```
-- Render Environment 탭에 넣어둔 관련 키(`SERVER_ORIGIN`, `RESEND_*`, `KAKAO_*`, `GOOGLE_*`)가 있으면 삭제. 카카오 디벨로퍼스/Google Cloud Console/Resend에 만들어둔 앱·키도 필요 없으면 삭제.
 
 ### 완료된 6개 기능
 **사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
@@ -100,7 +92,6 @@
 ## 알려진 한계
 - 커스텀 기간 트렌드는 가짜 데이터(위 "진행 중" 5번에서 실제 데이터로 교체 예정)
 - 최초 admin 계정 부트스트랩은 여전히 DB 직접 수정 필요(그 이후 승격은 관리 화면으로 가능)
-- 등록된 밈을 수정/삭제하는 UI가 없음(잘못 등록하면 DB 직접 수정 필요) — 아직 누구도 요청 안 해서 후순위
 - `server/` 의존성에 npm audit 취약점 5건(moderate 2, high 3) 확인만 하고 조치 안 함
 - 자동화 테스트(유닛/통합)가 전혀 없음 — 지금까지 전부 수동 curl/브라우저 검증으로만 확인
 
