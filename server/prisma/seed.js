@@ -1,5 +1,5 @@
 // 기존 src/data/memes.js의 Mock 데이터를 DB로 옮기는 1회성 시드 스크립트.
-// 실행: node prisma/seed.js (npm run으로 감싸지 말 것 — CLAUDE.md의 cmd.exe 이슈 참고)
+// 실행: node prisma/seed.js (Windows PC방에선 npm run으로 감싸지 말 것 — docs/WINDOWS_PC_NOTES.md의 cmd.exe 이슈 참고)
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";

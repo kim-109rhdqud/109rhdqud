@@ -4,7 +4,14 @@
 
 ## 기술 스택
 - 프론트: React 19 + Vite, Tailwind CSS 4 (`@tailwindcss/vite` 플러그인), lucide-react(아이콘), oxlint(린트, TypeScript 아님 — 순수 JSX)
-- 백엔드(`server/`, 2026-09-11 추가, 구현 진행 중): Node + Express, Prisma(ORM), Neon(PostgreSQL 호스팅) — 단, 이 PC방 네트워크가 표준 Postgres 포트(5432)를 막아놔서 `@prisma/adapter-neon` + `@neondatabase/serverless`로 HTTP/WebSocket(443) 기반 접속을 씀. 인증은 bcryptjs + jsonwebtoken(httpOnly 쿠키). 결정 배경은 [docs/BACKEND.md](docs/BACKEND.md) 참고.
+- 백엔드(`server/`, 2026-09-11 추가, 구현 진행 중): Node + Express, Prisma(ORM), Neon(PostgreSQL 호스팅) — 표준 TCP(5432) 대신 `@prisma/adapter-neon` + `@neondatabase/serverless`로 HTTP/WebSocket(443) 기반 접속을 씀(원래 5432가 막힌 PC방 네트워크 때문에 도입, 지금은 어디서든 그냥 동작하니 유지). 인증은 bcryptjs + jsonwebtoken(httpOnly 쿠키). 결정 배경은 [docs/BACKEND.md](docs/BACKEND.md) 참고.
+
+## 작업 환경
+- **2026-10-18부터 클라우드 Claude Code(리눅스 컨테이너)에서 작업함.** 그 전 PC방(Windows) 작업 때의 우회법(cmd.exe 차단, `net use` 패치, `--ignore-scripts` 등)은 [docs/WINDOWS_PC_NOTES.md](docs/WINDOWS_PC_NOTES.md)로 옮김 — 클라우드에선 해당 없음, 다시 Windows PC에서 작업할 때만 볼 것.
+- 세션마다 새 컨테이너라 `node_modules`가 없음 → **`.claude/hooks/session-start.sh`가 세션 시작 시 루트·`server/` 의존성을 자동 설치**(`npm ci`, 서버는 postinstall로 `prisma generate`까지). `npm install` 대신 `ci`를 쓰는 건 컨테이너의 npm 버전이 달라서 install이 `package-lock.json`을 매번 다시 써버리기 때문(libc 필드 등) — lock 파일이 바뀌어 있으면 커밋하지 말고 되돌릴 것.
+- 세션이 끝나면 컨테이너가 사라짐 → **작업은 항상 commit + push.** 지정된 작업 브랜치에서 하고 PR로 `main`에 머지 — Render(백엔드)·Vercel(프론트)이 `main`을 자동 배포함.
+- **이 클라우드 환경의 네트워크 정책이 운영 서버(`trend-book.onrender.com`)를 막고 있고(2026-10-18 확인), `DATABASE_URL`도 없음** → 컨테이너에서 운영 서버 확인·운영 DB 작업은 못 함. 환경 설정에서 해당 호스트 허용 + `DATABASE_URL` 환경변수를 추가하면 가능해짐. 그 전까진 운영 DB 변경은 Neon 웹 콘솔 SQL Editor로(사용자가 직접 또는 Claude in Chrome으로) 하고, 배포 후 동작 확인은 사용자에게 부탁할 것.
+- **기능 검증은 컨테이너 안 로컬 Postgres로 가능** — PostgreSQL 16이 깔려 있음(`pg_ctlcluster 16 main start`). 서버의 `src/lib/prisma.js`는 Neon 어댑터라 로컬 Postgres엔 그대로 못 붙으므로, 레포 파일은 건드리지 말고 `server/`를 스크래치 디렉토리로 복사해 그 사본의 `prisma.js`만 어댑터 없는 `new PrismaClient()`로 바꿔서 `prisma db push` → `node prisma/seed.js` → 서버 띄워서 API 시나리오를 돌림(2026-10-18 밈 수정/삭제·보안 패치 검증 때 이 방식 사용). 끝나면 테스트 DB 삭제·Postgres 정지.
 
 ## 실행 명령어
 프론트(레포 루트에서):
@@ -13,17 +20,18 @@
 - `npm run lint` — oxlint 실행
 - `npm run preview` — 빌드 결과 미리보기
 
-백엔드(`server/` 디렉토리에서, **npm run 대신 항상 아래처럼 직접 실행** — 이유는 아래 "PC방 컴퓨터" 항목 참고):
-- `node src/index.js` — API 서버 실행 (기본 포트 4000)
-- `node node_modules/prisma/build/index.js generate` — Prisma Client 생성 (스키마만 읽음, DB 연결 불필요). **서버(`node src/index.js`)가 이미 떠 있는 상태에서 실행하면 엔진 파일이 잠겨서 `EPERM: rename ... query_engine-windows.dll.node` 에러가 남** — 먼저 그 서버 프로세스를 종료(`tasklist`/`taskkill //F //PID <pid>`)하고 다시 실행할 것.
+백엔드(`server/` 디렉토리에서):
+- `npm start` (= `node src/index.js`) — API 서버 실행 (기본 포트 4000). `server/.env.example`을 `server/.env`로 복사하고 `DATABASE_URL`/`JWT_SECRET` 등을 채워야 함(git에 안 잡힘)
+- `npx prisma generate` — Prisma Client 생성 (스키마만 읽음, DB 연결 불필요). `npm install`/`npm ci` 시 postinstall로 자동 실행됨
 - `node prisma/seed.js` — 기존 Mock 데이터(`src/data/memes.js`)를 DB로 이관하는 시드 스크립트
-- 최초 실행 전 `server/.env.example`을 `server/.env`로 복사하고 값 채울 것 (git에 안 잡힘 — PC 바뀔 때마다 새로 만들어야 함)
-- **`prisma migrate dev`/`deploy`는 이 네트워크(5432 포트 차단)에서 안 됨** — 마이그레이션 엔진이 어댑터를 안 타고 자체적으로 TCP 접속을 시도하기 때문. 스키마를 바꿨으면 대신:
-  1. **최초 스키마(테이블이 하나도 없는 상태)일 때만** `--from-empty` 사용: `node node_modules/prisma/build/index.js migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`. **이미 테이블이 있는 상태에서 스키마를 추가/변경할 때는 `--from-empty` 쓰면 안 됨** — 기존 테이블까지 처음부터 다시 `CREATE TABLE`하는 SQL이 나와서 이미 있는 테이블과 충돌함(2026-09-12 발견).
-     증분 SQL 생성 시 `--from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script`를 쓰고 싶어지는데, **이건 실제로 안 됨(2026-09-13 발견)** — `--from-migrations`/`--to-migrations`는 내부적으로 마이그레이션 히스토리를 재생해볼 shadow database가 필요해서 `--shadow-database-url`을 요구하고, 이것도 결국 5432 TCP 접속이라 이 네트워크에선 못 씀. **대신**: 현재 라이브 DB 상태를 반영하는 "변경 전" 스키마 스냅샷을 임시 파일로 만들어서(즉, `prisma/schema.prisma`에서 이번에 추가/변경한 모델·필드만 빼거나 되돌린 사본) `--from-schema-datamodel <임시 파일 경로> --to-schema-datamodel prisma/schema.prisma --script`로 두 스키마 파일끼리 비교할 것 — 이 조합은 정적 파일 비교라 DB/shadow db가 전혀 필요 없음(완전 오프라인).
-  2. 그 SQL을 `server/prisma/apply-migration.js`로 직접 실행 (443 포트, `@neondatabase/serverless`의 `Pool` 사용) — `node prisma/apply-migration.js prisma/migrations/<타임스탬프>_<이름>/migration.sql`. 새 마이그레이션 폴더를 만들 때 타임스탬프는 기존 폴더명(`YYYYMMDDHHMMSS_설명`)과 같은 형식으로 맞출 것.
-  - `prisma/migrations/migration_lock.toml`(provider만 적힌 한 줄짜리 파일)이 없으면 `migrate diff`류 명령이 "missing migration_lock.toml" 에러를 냄 — 지금까지 마이그레이션을 전부 `prisma migrate dev`가 아니라 위 방식(수동 SQL 적용)으로만 해와서 이 파일이 애초에 생성된 적이 없었음(2026-09-13 발견). 내용은 `provider = "postgresql"` 한 줄이면 됨, DB 연결 없이 그냥 만들면 됨.
-  3. `_prisma_migrations` 이력 테이블엔 안 남으므로, 5432가 뚫리는 네트워크(집 등)에서 작업할 기회가 있으면 그때 `prisma migrate resolve --applied <migration명>`으로 한 번 동기화해줄 것.
+
+## DB 스키마 변경 (마이그레이션)
+- **`prisma migrate dev`/`deploy`는 쓰지 않음** — 마이그레이션 엔진은 어댑터를 안 타고 TCP(5432)로 직접 붙는데, 5432가 막힌 네트워크가 있어서(PC방, 지금 클라우드 환경도 운영 DB 접속 불가) 어디서든 되는 수동 방식으로 통일함. 스키마를 바꿨으면:
+  1. **최초 스키마(테이블이 하나도 없는 상태)일 때만** `--from-empty` 사용: `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`. **이미 테이블이 있는 상태에서 스키마를 추가/변경할 때는 `--from-empty` 쓰면 안 됨** — 기존 테이블까지 처음부터 다시 `CREATE TABLE`하는 SQL이 나와서 이미 있는 테이블과 충돌함(2026-09-12 발견).
+     증분 SQL 생성 시 `--from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script`를 쓰고 싶어지는데, **이건 실제로 안 됨(2026-09-13 발견)** — `--from-migrations`/`--to-migrations`는 내부적으로 마이그레이션 히스토리를 재생해볼 shadow database가 필요해서 `--shadow-database-url`을 요구하고, 이것도 결국 5432 TCP 접속임. **대신**: 현재 라이브 DB 상태를 반영하는 "변경 전" 스키마 스냅샷을 임시 파일로 만들어서(즉, `prisma/schema.prisma`에서 이번에 추가/변경한 모델·필드만 빼거나 되돌린 사본) `--from-schema-datamodel <임시 파일 경로> --to-schema-datamodel prisma/schema.prisma --script`로 두 스키마 파일끼리 비교할 것 — 정적 파일 비교라 DB/shadow db가 전혀 필요 없음(완전 오프라인).
+  2. 그 SQL을 `server/prisma/migrations/<타임스탬프>_<이름>/migration.sql`로 저장하고(타임스탬프는 기존 폴더명 `YYYYMMDDHHMMSS_설명` 형식), 운영 DB에 적용: `DATABASE_URL`이 있는 환경이면 `node prisma/apply-migration.js prisma/migrations/<폴더>/migration.sql`(443 포트, `@neondatabase/serverless`의 `Pool` 사용), 없으면 Neon 웹 콘솔 SQL Editor에 붙여넣어 실행. **운영 서버가 아직 옛 코드면 컬럼 삭제 같은 SQL은 배포가 끝난 다음에 실행할 것** — 순서가 바뀌면 옛 코드가 없는 컬럼을 조회해서 운영이 깨짐(2026-10-18).
+  - `prisma/migrations/migration_lock.toml`(내용: `provider = "postgresql"` 한 줄)이 없으면 `migrate diff`류 명령이 "missing migration_lock.toml" 에러를 냄 — 이미 만들어둠, 지우지 말 것.
+  3. `_prisma_migrations` 이력 테이블엔 안 남으므로, 5432가 뚫리는 환경에서 작업할 기회가 있으면 그때 `prisma migrate resolve --applied <migration명>`으로 한 번 동기화해줄 것.
 
 ## 현재 아키텍처
 - [src/App.jsx](src/App.jsx)는 얇은 셸(shell)만 담당 — `useAppState` 훅으로 상태를 받아 NavBar와 현재 view에 맞는 페이지를 렌더링.
@@ -32,7 +40,7 @@
 - `src/hooks/useAppState.js` — view/user/memes/scraps/recentlyViewed 상태 관리. `memes`는 앱 로드 시 `GET /memes`로 한 번 fetch(`memeById`는 이 배열에서 찾는 파생 함수, `refreshMemes`는 밈 등록 직후처럼 새로고침 없이 목록을 다시 받아와야 할 때 씀). `scraps`·`recentlyViewed` 둘 다 로그인 상태일 때만 서버에서 채워지고 서버가 정본(비로그인이면 아예 추적 안 함 — 로그인 화면으로 유도, 마이페이지가 어차피 로그인 필수라 도달 불가능한 경우라 단순화). `localStorage`는 이제 이 앱에서 전혀 안 씀(`src/lib/storage.js`도 삭제됨). `user`도 localStorage에 안 남기고 앱 로드 시 `GET /auth/me`로 채움.
 - `src/components/` — 여러 페이지에서 재사용되는 작은 UI 조각(Logo, NavBar, SearchBar, MemeCard, CategoryTag, MockTag, RankChange, MetricBar, Sparkline, SectionHeading, PillTabs, VerificationBadge, VerificationEditForm, SubmissionCard, SubmissionStatusBadge 등)
 - `src/pages/` — 화면 단위 뷰 컴포넌트 (HomeView, SearchResultsView, DetailView, TrendView, DictionaryView, ArchiveView, AuthView, MyPageView, ScrapsView, EditProfileView, AdminUsersView, SubmitMemeView, MySubmissionsView, SubmissionQueueView, RegisterMemeView)
-- 라우팅 라이브러리 없이 `view` state 객체(`{ name: "home" | "search" | "detail" | "trend" | "dictionary" | "archive" | "auth" | "mypage" | "scraps" | "admin" | "submit" | "mySubmissions" | "submissionQueue" | "registerMeme" | "editMeme", ...params }`)로 화면 전환. 브라우저 뒤로가기/URL 공유는 동작하지 않음 — 다음 작업 예정([docs/PROGRESS.md](docs/PROGRESS.md) 참고).
+- 라우팅 라이브러리 없이 `view` state 객체(`{ name: "home" | "search" | "detail" | "trend" | "dictionary" | "archive" | "auth" | "mypage" | "scraps" | "admin" | "submit" | "mySubmissions" | "submissionQueue" | "registerMeme" | "editMeme", ...params }`)로 화면 전환하고, [src/lib/routes.js](src/lib/routes.js)가 이 view ↔ 실제 URL 경로(`/meme/:id`, `/meme/:id/edit`, `/trend` 등)를 매핑함 — `history.pushState`/`popstate` 기반이라 뒤로가기·새로고침·링크 공유 다 동작(배포 시 `vercel.json`의 SPA rewrite로 딥링크 처리).
 - **로그인/회원가입은 2026-09-11부터 실제 백엔드(`server/`)에 연동됨** — `src/lib/api.js`가 `/auth/*` API를 호출하고, 세션은 서버가 발급하는 httpOnly 쿠키로 관리(`useAppState`가 앱 로드 시 `GET /auth/me`로 로그인 여부 확인). 더 이상 Mock 아님. **로그인은 이메일이 아니라 아이디(username) 기준**이고, 회원가입 시 닉네임/이메일/아이디/실명/생년월일/휴대전화번호를 전부 입력받음(`src/pages/AuthView.jsx`). 마이페이지에서 "내 정보 수정"(`src/pages/EditProfileView.jsx`)으로 닉네임/이메일/실명/휴대전화번호 수정 가능 — 아이디·생년월일은 불변.
 - **밈 데이터(2026-09-12)와 스크랩(2026-09-12)은 실제 백엔드 API로 연동 완료.** 밈 데이터는 `GET /memes`(목록), 스크랩은 로그인 필요 `GET/POST/DELETE /scraps`.
 - **최근 본 밈(2026-09-13)** — `GET/POST /recently-viewed`(로그인 필요, 최근 5개, `(userId,memeId)` upsert로 중복 없이 viewedAt만 갱신), `useAppState`가 스크랩과 동일 패턴으로 처리. DB 마이그레이션 적용 + curl로 인증 가드/기록/정렬/5개 제한까지 실동작 확인 완료.
@@ -66,20 +74,3 @@
 - [docs/SPEC.md](docs/SPEC.md)에 이 프로젝트의 원본 기획서(초기 제작 프롬프트) 전문이 보존되어 있음. 기능/디자인 방향에 대해 판단이 필요할 때 참고할 것. 단, TypeScript 관련 항목(18번)처럼 의도적으로 벗어난 부분도 있으니 SPEC.md 상단의 "알려진 의도적 이탈 사항"을 먼저 확인할 것.
 - [docs/STRATEGY.md](docs/STRATEGY.md)에 "이 기획이 실제로 경쟁력이 있는가"를 스스로 반박·보완해나간 기획 피드백 토론 기록이 있음. 차별화 전략, 인증마크(신뢰도) 설계, 수익모델 등을 다룰 때 먼저 확인할 것. 모든 스레드(2-1~2-8) 닫힘 — 기획 단계는 확정·마무리됨.
 - [docs/BACKEND.md](docs/BACKEND.md)에 실제 배포를 위한 백엔드 아키텍처 결정(Node/Express + Neon Postgres + Prisma + httpOnly 쿠키 JWT, 모노레포 구조, 데이터 모델·API 엔드포인트 초안)이 정리돼 있음. 백엔드 관련 작업 시작 전 먼저 확인할 것.
-- 이 프로젝트는 PC방 등 여러 컴퓨터를 오가며 작업함 — 세션 종료 전 항상 git commit + push, 시작 시 git pull.
-- **환경 점검은 "정말 필요한 것만" 하고 검증용 절차를 늘리지 말 것(2026-09-14 피드백: 매번 시간 너무 오래 걸림).** 이 프로젝트는 실제로 매번 다른 PC(PC방)라 `node_modules`/`.env`가 없는 게 정상이고 설치 자체는 매번 새로 해야 함 — 그건 못 줄임. 대신 아래 두 가지는 **항상 하지 말고, 실제로 문제가 생겼을 때만(반응적으로)** 할 것:
-  - **손상 체크(lucide-react 파일 개수, `@tailwindcss/oxide` 네이티브 바이너리 등)를 설치 끝날 때마다 미리 해보지 말 것.** 이건 가끔 생기는 문제지 매번 생기는 게 아님 — `npm install`이 끝나면 바로 build/lint 한 번만 돌려보고, 거기서 진짜로 이상한 모듈 해석 에러가 나올 때만 그때 가서 해당 패키지를 의심하고 재설치할 것.
-  - **dev 서버·백엔드 서버를 띄워서 curl로 확인하고 다시 끄는 절차를 환경 점검에 기본으로 넣지 말 것.** build 성공 + lint 클린이면 환경 자체는 검증된 것 — 서버를 실제로 띄워서 보여주는 건 사용자가 그걸 원할 때(직접 보고 싶다거나 실행해달라고 할 때)만 별도로 할 것.
-  결국 환경 점검의 기본 흐름은: node 확인 → git identity 확인/수정 → `.env` 없으면 템플릿에서 생성 → `npm install`(서버는 `--ignore-scripts`) → `prisma generate` → Vite `net use` 패치 적용(이건 이 네트워크에서 100% 재현되는 문제라 예방적으로 바로 할 것) → build/lint 한 번. 여기서 끝 — 추가 검증은 안 함.
-- **PC마다 node.js가 아예 설치되어 있지 않을 수 있음** (PC방 컴퓨터가 특히 그럼). PATH 문제가 아니라 진짜 미설치인지 먼저 확인할 것(`node -v`). 설치돼 있어도 방금 설치했다면 VS Code(정확히는 Claude Code 확장을 호스팅하는 프로세스)를 재시작해야 새 PATH가 반영됨 — 재시작 전에는 설치했는데도 `command not found`가 뜰 수 있음.
-- **진짜 새 PC는 git 사용자 정보(`user.name`/`user.email`)도 아예 설정 안 돼 있어서 첫 커밋 시도에서 "Author identity unknown" 에러가 남(2026-09-13 확인).** `git log --format='%an <%ae>'`로 기존 커밋 작성자를 확인해서 `git config user.name "109kim"` / `git config user.email "27174298leo@gmail.com"`로 (레포 로컬에만, `--global` 없이) 맞춰줄 것.
-- **이 PC방 컴퓨터는 `cmd.exe`/`powershell.exe` 프로세스 스폰 자체를 정책상 막아놓음 — Claude 도구뿐 아니라 사용자가 직접 여는 git bash에서도 재현됨(확인됨: 2026-09-10).** `npm run dev`/`npm run build`/`npm run lint`는 Windows에서 npm이 내부적으로 `cmd.exe /d /s /c "..."`로 스크립트를 실행하는데, 이 스폰이 막히면서 `> vite` 같은 배너 줄만 찍히고 그 이후 아무 반응 없이 조용히 멈춘다(사용자 bash에서도, Claude의 Bash 도구에서도 동일 증상: 에러 메시지 없이 그냥 멈추거나 exit 127).
-  - **따라서 `npm run <script>` 대신 항상 실제 바이너리를 직접 호출할 것** — 이건 Claude 자신이 검증할 때뿐 아니라 사용자에게 실행을 안내할 때도 마찬가지임:
-    - 개발 서버: `node node_modules/vite/bin/vite.js`
-    - 빌드: `node node_modules/vite/bin/vite.js build`
-    - 린트: `node_modules/oxlint/bin/oxlint` (`.bin`의 `.cmd`/`.ps1` shim이 아니라 실제 바이너리 경로)
-  - `child_process.exec`/`execSync`처럼 내부적으로 cmd.exe를 거치는 호출만 막히고, `execFile`/`spawn`으로 바이너리를 직접 실행하는 건 정상 동작함(node.exe, bash.exe, git.exe 등). `npm install` 자체는 이 프론트엔드 의존성(vite, tailwind, oxlint, lucide-react 등 — install/postinstall 스크립트 없음)에 한해서는 cmd.exe를 안 거치므로 문제없이 된다.
-  - **단, `npm install`도 무조건 안전한 건 아님(2026-09-11, `server/` 추가하면서 확인)** — 설치하려는 패키지 중 `postinstall` 등 라이프사이클 스크립트가 있는 경우(예: `prisma`), npm이 그 스크립트를 실행하려고 내부적으로 cmd.exe를 스폰하면서 똑같이 막힘 → `npm error errno: -4048, code: 'EPERM', syscall: 'spawn'`로 설치 자체가 실패한다. 대응: `npm install --ignore-scripts`로 라이프사이클 스크립트를 건너뛰고 설치한 뒤, 필요한 스크립트(예: `prisma generate`)는 `node node_modules/prisma/build/index.js generate`처럼 실제 바이너리를 직접 호출해서 수동으로 실행할 것. `npx <cli>`도 내부적으로 같은 방식이라 막힐 수 있으니 `npx` 대신 항상 `node node_modules/<pkg>/<entry>` 직접 호출 패턴을 우선 시도할 것.
-  - Vite 8.2.2는 추가로 Windows 설정 로딩 시 내부적으로 `exec("net use")`를 호출(`node_modules/vite/dist/node/chunks/node.js`의 `optimizeSafeRealPathSync`)하는데 이것도 cmd.exe라서 막힌다. 이번엔 콜백에 에러가 전달되는 게 아니라 `exec()` 호출 자체가 동기적으로 `spawn EPERM`을 던지는 걸로 확인됨(2026-09-13) — 그 `exec(...)` 호출을 `try { ... } catch { safeRealpathSync = fs.realpathSync.native; }`로 감싸면 우회되지만(네트워크 드라이브 판별만 건너뜀, 로컬 드라이브엔 영향 없음), `node_modules`는 git에 안 잡히므로 `npm install`을 다시 하면 사라지는 임시 조치임 — 필요할 때마다 다시 적용.
-  - **이 네트워크는 `npm install` 자체가 성공(exit 0)해도 일부 패키지 파일이 손상되거나 누락된 채로 받아질 수 있음(2026-09-13 발견, 원인은 불명 — 아마 네트워크 불안정으로 인한 부분 다운로드).** 이번 세션에서 실제로 두 번 재현됨: (1) `@tailwindcss/oxide-win32-x64-msvc`의 네이티브 바이너리(`.node` 파일)가 손상됨("stream did not contain valid UTF-8" 에러로 나타남), (2) `lucide-react`가 아이콘 파일 대부분이 빠진 채 설치됨(1155개만 있어야 할 4000개대 파일 중 `index.mjs`를 포함한 다수가 없어서 빌드 시 `[UNRESOLVED_IMPORT]` 에러). `npm install`이 에러 없이 끝났다고 안심하지 말고, 빌드/린트가 이상한 모듈 해석 에러를 내면 먼저 해당 패키지(또는 전체 `node_modules` + `package-lock.json`)를 지우고 재설치해볼 것 — 재설치로 두 번 다 해결됨.
-- **이 PC방 컴퓨터(같은 네트워크)는 추가로 Postgres 기본 포트(5432) 아웃바운드 자체를 막아놓음(확인됨: 2026-09-11).** 443(HTTPS)은 정상 연결됨. 그래서 `DATABASE_URL`이 정확해도 `prisma migrate`/일반 TCP 기반 Postgres 클라이언트는 전부 `P1001: Can't reach database server`로 타임아웃남 — Neon 프로젝트나 연결 문자열 문제가 아니라 네트워크 정책 문제였음. 대응: 서버(`server/`)는 표준 TCP 대신 **Neon의 HTTP/WebSocket 기반 드라이버(`@neondatabase/serverless` + `@prisma/adapter-neon`)로 접속**하도록 만들어둠 — 이건 443 포트만 쓰므로 이 네트워크에서도 정상 동작함(자세한 내용과 마이그레이션 적용 방법은 [docs/BACKEND.md](docs/BACKEND.md) 참고). 다른(제약 없는) 네트워크에서 작업할 땐 이 어댑터가 오히려 불필요할 수도 있지만, 굳이 걷어낼 필요는 없음 — 어차피 정상 동작함.
