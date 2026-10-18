@@ -22,7 +22,7 @@
   **Render** 추천(무료 티어 있음, 다만 idle 시 슬립됨). 확정은 실제 배포 단계에서.
 
 ## 왜 이렇게 결정했는지
-- [CLAUDE.md](../CLAUDE.md)에 기록된 **cmd.exe 스폰 차단 이슈는 `npm run <script>` 한정 문제**로 확인됨.
+- [docs/WINDOWS_PC_NOTES.md](WINDOWS_PC_NOTES.md)(원래 CLAUDE.md)에 기록된 PC방 **cmd.exe 스폰 차단 이슈는 `npm run <script>` 한정 문제**로 확인됨.
   Express 서버는 `node server/index.js`처럼 바이너리를 직접 실행하면 로컬(PC방 포함)에서 문제없이
   돌아감. 단, npm script로 감싸서 실행하면(`npm run server`) vite/oxlint 때와 똑같이 조용히 멈출 수
   있으니 **항상 직접 실행**할 것. `npx prisma ...`도 내부적으로 같은 계열 문제가 있을 수 있어
