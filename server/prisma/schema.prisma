@@ -30,33 +30,16 @@ enum SubmissionStatus {
 }
 
 model User {
-  id       String  @id @default(cuid())
-  nickname String
-
-  // 2026-09-14부터 카카오/구글로 바로 가입도 가능해지면서(신규 계정 생성), 이 5개는 더 이상
-  // 항상 값이 있다고 보장 못 함 — 소셜로 막 가입한 계정은 전부 null이었다가
-  // "가입 완료" 온보딩(POST /auth/complete-profile)에서 한 번에 채워짐. 일반 폼 가입(POST /auth/signup)은
-  // 여전히 이 5개를 전부 필수로 받아서 처음부터 채워진 채로 만들어짐.
-  email        String?   @unique
-  username     String?   @unique // 로그인용 아이디 (이메일과 별개)
-  realName     String? // 실명
-  birthDate    DateTime? // 생년월일
-  phone        String?   @unique // 휴대전화번호
-  passwordHash String? // 소셜 전용 계정(일반 비밀번호 로그인 안 씀)은 null
-
-  role      Role     @default(user)
-  createdAt DateTime @default(now())
-
-  // 이메일 인증 (2026-09-14 추가). 토큰은 발급할 때마다 새로 덮어씀 — 재발송하면 이전 토큰은 무효화됨.
-  emailVerified              Boolean   @default(false)
-  emailVerificationToken     String?   @unique
-  emailVerificationExpiresAt DateTime?
-
-  // 카카오/구글 연동용 provider user id (2026-09-14 추가). 이 컬럼이 채워져 있으면
-  // "연동된 계정"이라는 뜻 — 회원가입은 여전히 일반 폼으로만 가능하고, 소셜 로그인은
-  // 이미 연동된 계정에 한해서만 로그인 수단으로 동작함(신규 가입 우회 방지).
-  kakaoId  String? @unique
-  googleId String? @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
+  nickname     String
+  username     String   @unique // 로그인용 아이디 (이메일과 별개)
+  realName     String // 실명
+  birthDate    DateTime // 생년월일
+  phone        String   @unique // 휴대전화번호
+  passwordHash String
+  role         Role     @default(user)
+  createdAt    DateTime @default(now())
 
   scraps            Scrap[]
   recentlyViewed    RecentlyViewed[]

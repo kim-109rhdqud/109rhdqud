@@ -1,25 +1,11 @@
-import { useState } from "react";
-import { ChevronRight, MailCheck, MailWarning } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { MemeCard } from "../components/MemeCard";
 import { CATEGORIES } from "../data/memes";
 import { rankList } from "../data/rank";
-import { resendVerificationEmail } from "../lib/api";
 
 const SCRAP_PREVIEW_COUNT = 6;
 
 export function MyPageView({ user, scraps, recentlyViewed, setView, memes, memeById }) {
-  const [resendState, setResendState] = useState("idle"); // idle | sending | sent | error
-
-  const resend = async () => {
-    setResendState("sending");
-    try {
-      await resendVerificationEmail();
-      setResendState("sent");
-    } catch {
-      setResendState("error");
-    }
-  };
-
   if (!user) {
     return (
       <div className="max-w-md mx-auto px-5 py-20 text-center">
@@ -54,25 +40,6 @@ export function MyPageView({ user, scraps, recentlyViewed, setView, memes, memeB
           내 정보 수정
         </button>
       </div>
-
-      {user.emailVerified ? (
-        <p className="mb-10 flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 w-fit">
-          <MailCheck size={14} /> 이메일 인증됨
-        </p>
-      ) : (
-        <div className="mb-10 flex items-center gap-2 flex-wrap text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 w-fit">
-          <MailWarning size={14} />
-          <span>이메일이 아직 인증되지 않았어.</span>
-          {resendState === "sent" ? (
-            <span className="text-emerald-700">인증 메일을 다시 보냈어, 메일함을 확인해줘.</span>
-          ) : (
-            <button onClick={resend} disabled={resendState === "sending"} className="underline hover:no-underline disabled:opacity-50">
-              {resendState === "sending" ? "발송 중..." : "인증 메일 재발송"}
-            </button>
-          )}
-          {resendState === "error" && <span className="text-rose-600">발송 실패했어, 잠시 후 다시 시도해줘.</span>}
-        </div>
-      )}
 
       <section className="mb-12">
         <div className="flex items-center justify-between mb-4">

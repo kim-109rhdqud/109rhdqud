@@ -1,21 +1,10 @@
 import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { login, signup, API_BASE_URL } from "../lib/api";
+import { login, signup } from "../lib/api";
 
 const SUCCESS_DELAY_MS = 700;
 
-// 카카오/구글은 이미 연동된 계정이 있으면 로그인, 없으면 바로 새 계정을 만들어줌 —
-// 이메일이 겹치는 경우(구글)만 예외적으로 막고 일반 로그인 후 연동하라고 안내함.
-const OAUTH_ERROR_MESSAGES = {
-  kakao_email_taken: "이미 가입된 계정이야. 로그인 후 마이페이지에서 카카오 연동을 해줘.",
-  google_email_taken: "이미 이 이메일로 가입된 계정이 있어. 로그인 후 마이페이지에서 구글 연동을 해줘.",
-  kakao_failed: "카카오 로그인 중 문제가 생겼어. 다시 시도해줘.",
-  google_failed: "구글 로그인 중 문제가 생겼어. 다시 시도해줘.",
-  kakao_unconfigured: "카카오 로그인이 아직 설정 안 됐어.",
-  google_unconfigured: "구글 로그인이 아직 설정 안 됐어.",
-};
-
-export function AuthView({ setView, onAuth, oauthError }) {
+export function AuthView({ setView, onAuth }) {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -74,9 +63,6 @@ export function AuthView({ setView, onAuth, oauthError }) {
       </div>
 
       <div className="surface-card p-6 sm:p-7">
-        {oauthError && OAUTH_ERROR_MESSAGES[oauthError] && (
-          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">{OAUTH_ERROR_MESSAGES[oauthError]}</p>
-        )}
         <div className="flex gap-1 mb-6 bg-neutral-100 rounded-full p-1">
           {["login", "signup"].map((m) => (
             <button
@@ -163,29 +149,6 @@ export function AuthView({ setView, onAuth, oauthError }) {
             {submitting ? "처리 중..." : mode === "login" ? "로그인" : "가입하기"}
           </button>
         </form>
-
-        <div className="flex items-center gap-3 my-5">
-          <div className="h-px bg-neutral-100 flex-1" />
-          <span className="text-xs text-neutral-400">또는</span>
-          <div className="h-px bg-neutral-100 flex-1" />
-        </div>
-        <div className="space-y-2">
-          <a
-            href={`${API_BASE_URL}/auth/kakao`}
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium bg-[#FEE500] text-[#191600] hover:brightness-95 transition-all"
-          >
-            카카오로 계속하기
-          </a>
-          <a
-            href={`${API_BASE_URL}/auth/google`}
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium ring-1 ring-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-all"
-          >
-            구글로 계속하기
-          </a>
-        </div>
-        <p className="text-xs text-neutral-400 text-center mt-3">
-          처음이면 계정이 바로 만들어지고, 이미 있으면 로그인돼.
-        </p>
       </div>
     </div>
   );
