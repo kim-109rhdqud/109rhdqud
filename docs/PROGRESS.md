@@ -92,7 +92,7 @@
 ## 알려진 한계
 - 커스텀 기간 트렌드는 가짜 데이터(위 "진행 중" 5번에서 실제 데이터로 교체 예정)
 - 최초 admin 계정 부트스트랩은 여전히 DB 직접 수정 필요(그 이후 승격은 관리 화면으로 가능)
-- `server/` 의존성에 npm audit 취약점 5건(moderate 2, high 3) 확인만 하고 조치 안 함
+- `server/` 의존성 npm audit: 2026-10-18 `npm audit fix`로 4건 해결(critical 1 — `proxy-addr` IP 위조, moderate 3 — `qs`·`ip-address`). 남은 high 3건은 전부 Prisma CLI 내부 `deepmerge-ts`(설정 파일 로딩할 때만 쓰이고 사용자 요청 데이터는 안 거침)라 실제 공격 경로는 없음 — 고치려면 Prisma 6 → 7 이상 메이저 업그레이드가 필요해서 보류
 - 자동화 테스트(유닛/통합)가 전혀 없음 — 지금까지 전부 수동 curl/브라우저 검증으로만 확인
 
 ## 세션 마무리 체크리스트
