@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PlusCircle, Sparkles, Trash2 } from "lucide-react";
-import { createMeme } from "../lib/api";
+import { createMeme, updateMeme } from "../lib/api";
 import { CATEGORIES } from "../data/memes";
 
 function splitCsv(text) {
@@ -61,27 +61,31 @@ function RowListField({ label, rows, setRows, fields, addLabel }) {
   );
 }
 
-export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill }) {
-  const [id, setId] = useState("");
-  const [name, setName] = useState(prefill?.name ?? "");
-  const [categories, setCategories] = useState(prefill?.category ? [prefill.category] : []);
-  const [oneLiner, setOneLiner] = useState(prefill?.oneLiner ?? "");
-  const [oneLineSummary, setOneLineSummary] = useState("");
-  const [whatIsIt, setWhatIsIt] = useState("");
-  const [whyPopular, setWhyPopular] = useState("");
-  const [howToUse, setHowToUse] = useState("");
-  const [platforms, setPlatforms] = useState("");
-  const [period, setPeriod] = useState("");
-  const [keywords, setKeywords] = useState("");
-  const [registeredAt, setRegisteredAt] = useState(new Date().toISOString().slice(0, 10));
-  const [buzz, setBuzz] = useState(50);
-  const [search, setSearch] = useState(50);
-  const [usage, setUsage] = useState(50);
-  const [trend, setTrend] = useState("");
-  const [timeline, setTimeline] = useState([]);
-  const [relatedVideos, setRelatedVideos] = useState([]);
-  const [relatedPeople, setRelatedPeople] = useState([]);
-  const [relatedMemeIds, setRelatedMemeIds] = useState([]);
+// 등록과 수정을 같은 폼으로 처리함. editing(기존 밈)이 있으면 수정 모드 — 기존 값으로 채워서 시작하고,
+// 서버가 필드를 통째로 교체하므로 손 안 댄 필드도 그대로 다시 보냄. id는 URL에 쓰여서 수정 불가.
+export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill, editing }) {
+  const [id, setId] = useState(editing?.id ?? "");
+  const [name, setName] = useState(editing?.name ?? prefill?.name ?? "");
+  const [categories, setCategories] = useState(editing?.categories ?? (prefill?.category ? [prefill.category] : []));
+  const [oneLiner, setOneLiner] = useState(editing?.oneLiner ?? prefill?.oneLiner ?? "");
+  const [oneLineSummary, setOneLineSummary] = useState(editing?.oneLineSummary ?? "");
+  const [whatIsIt, setWhatIsIt] = useState(editing?.whatIsIt ?? "");
+  const [whyPopular, setWhyPopular] = useState(editing?.whyPopular ?? "");
+  const [howToUse, setHowToUse] = useState(editing?.howToUse ?? "");
+  const [platforms, setPlatforms] = useState(editing?.platforms.join(", ") ?? "");
+  const [period, setPeriod] = useState(editing?.period ?? "");
+  const [keywords, setKeywords] = useState(editing?.keywords.join(", ") ?? "");
+  const [registeredAt, setRegisteredAt] = useState(
+    (editing ? new Date(editing.registeredAt) : new Date()).toISOString().slice(0, 10),
+  );
+  const [buzz, setBuzz] = useState(editing?.popularity.buzz ?? 50);
+  const [search, setSearch] = useState(editing?.popularity.search ?? 50);
+  const [usage, setUsage] = useState(editing?.popularity.usage ?? 50);
+  const [trend, setTrend] = useState(editing?.popularity.trend.join(",") ?? "");
+  const [timeline, setTimeline] = useState(editing?.timeline ?? []);
+  const [relatedVideos, setRelatedVideos] = useState(editing?.relatedVideos ?? []);
+  const [relatedPeople, setRelatedPeople] = useState(editing?.relatedPeople ?? []);
+  const [relatedMemeIds, setRelatedMemeIds] = useState(editing?.relatedMemeIds ?? []);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
@@ -89,6 +93,9 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill }
   if (!user || !["editor", "admin"].includes(user.role)) {
     return <div className="max-w-md mx-auto px-5 py-20 text-center text-neutral-500">에디터 권한이 필요해.</div>;
   }
+
+  // 수정 중인 밈 자신은 관련 밈 후보에서 뺌.
+  const otherMemes = memes.filter((m) => m.id !== editing?.id);
 
   const toggleCategory = (c) => {
     setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -107,31 +114,37 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill }
       .filter((n) => !Number.isNaN(n));
     if (trendNums.length < 2) return setError("유행 추이 수치를 2개 이상 콤마로 구분해서 입력해줘 (예: 40,52,61)");
 
+    const fields = {
+      name,
+      categories,
+      oneLiner,
+      oneLineSummary,
+      whatIsIt,
+      whyPopular,
+      howToUse,
+      platforms: splitCsv(platforms),
+      period,
+      keywords: splitCsv(keywords),
+      registeredAt,
+      buzz: Number(buzz),
+      search: Number(search),
+      usage: Number(usage),
+      trend: trendNums,
+      timeline: timeline.filter((t) => t.date && t.text),
+      relatedVideos: relatedVideos.filter((v) => v.title && v.channel),
+      relatedPeople: relatedPeople.filter((p) => p.name && p.reason && p.content),
+      relatedMemeIds,
+    };
+
     setSubmitting(true);
     try {
-      const created = await createMeme({
-        id: id.trim(),
-        submissionId: prefill?.submissionId,
-        name,
-        categories,
-        oneLiner,
-        oneLineSummary,
-        whatIsIt,
-        whyPopular,
-        howToUse,
-        platforms: splitCsv(platforms),
-        period,
-        keywords: splitCsv(keywords),
-        registeredAt,
-        buzz: Number(buzz),
-        search: Number(search),
-        usage: Number(usage),
-        trend: trendNums,
-        timeline: timeline.filter((t) => t.date && t.text),
-        relatedVideos: relatedVideos.filter((v) => v.title && v.channel),
-        relatedPeople: relatedPeople.filter((p) => p.name && p.reason && p.content),
-        relatedMemeIds,
-      });
+      if (editing) {
+        await updateMeme(editing.id, fields);
+        await refreshMemes();
+        setView({ name: "detail", id: editing.id });
+        return;
+      }
+      const created = await createMeme({ id: id.trim(), submissionId: prefill?.submissionId, ...fields });
       await refreshMemes();
       setDone(created);
     } catch (err) {
@@ -163,8 +176,10 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill }
 
   return (
     <div className="max-w-2xl mx-auto px-5 py-10">
-      <h1 className="font-serif-kr text-3xl mb-1">밈 등록</h1>
-      <p className="text-sm text-neutral-400 mb-8">승인된 제보를 실제 밈 콘텐츠로 검수해서 등록해.</p>
+      <h1 className="font-serif-kr text-3xl mb-1">{editing ? "밈 수정" : "밈 등록"}</h1>
+      <p className="text-sm text-neutral-400 mb-8">
+        {editing ? `"${editing.name}"의 내용을 고쳐서 저장해.` : "승인된 제보를 실제 밈 콘텐츠로 검수해서 등록해."}
+      </p>
 
       {prefill?.sourceUrl && (
         <div className="surface-card p-4 mb-6 text-sm">
@@ -178,8 +193,17 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill }
       <form onSubmit={submit} className="surface-card p-6 sm:p-7 space-y-5">
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-neutral-400 mb-1.5">고유 ID(영문 소문자, URL에 씀)</span>
-            <input value={id} onChange={(e) => setId(e.target.value)} placeholder="예: ddujjonkku" required className="input-field" />
+            <span className="block text-xs text-neutral-400 mb-1.5">
+              {editing ? "고유 ID(링크가 깨지지 않게 수정 불가)" : "고유 ID(영문 소문자, URL에 씀)"}
+            </span>
+            <input
+              value={id}
+              onChange={(e) => setId(e.target.value)}
+              placeholder="예: ddujjonkku"
+              required
+              disabled={!!editing}
+              className="input-field disabled:text-neutral-400 disabled:cursor-not-allowed"
+            />
           </label>
           <label className="block">
             <span className="block text-xs text-neutral-400 mb-1.5">이름</span>
@@ -319,11 +343,11 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill }
           addLabel="인물 추가"
         />
 
-        {memes.length > 0 && (
+        {otherMemes.length > 0 && (
           <div>
             <span className="block text-xs text-neutral-400 mb-1.5">관련 밈 (선택)</span>
             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-              {memes.map((m) => (
+              {otherMemes.map((m) => (
                 <button
                   type="button"
                   key={m.id}
@@ -343,7 +367,7 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill }
 
         {error && <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2">{error}</p>}
         <button type="submit" disabled={submitting} className="btn-primary w-full py-2.5">
-          {submitting ? "등록 중..." : "밈으로 등록하기"}
+          {editing ? (submitting ? "저장 중..." : "수정 저장") : submitting ? "등록 중..." : "밈으로 등록하기"}
         </button>
       </form>
     </div>

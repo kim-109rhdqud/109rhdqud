@@ -19,6 +19,12 @@ const ROUTES = [
     toPath: (v) => `/meme/${encodeURIComponent(v.id)}`,
     fromMatch: (m) => ({ name: "detail", id: decodeURIComponent(m[1]) }),
   },
+  {
+    name: "editMeme",
+    pattern: /^\/meme\/([^/]+)\/edit$/,
+    toPath: (v) => `/meme/${encodeURIComponent(v.id)}/edit`,
+    fromMatch: (m) => ({ name: "editMeme", id: decodeURIComponent(m[1]) }),
+  },
   { name: "trend", pattern: /^\/trend$/, toPath: () => "/trend", fromMatch: () => ({ name: "trend" }) },
   { name: "dictionary", pattern: /^\/dictionary$/, toPath: () => "/dictionary", fromMatch: () => ({ name: "dictionary" }) },
   { name: "archive", pattern: /^\/archive$/, toPath: () => "/archive", fromMatch: () => ({ name: "archive" }) },

@@ -83,6 +83,17 @@ export async function createMeme(meme) {
   return normalizeMeme(created);
 }
 
+// 밈 내용 수정(에디터 전용) — id는 바꿀 수 없고, 나머지 필드는 통째로 교체됨.
+export async function updateMeme(id, meme) {
+  const updated = await request(`/memes/${id}`, { method: "PATCH", body: JSON.stringify(meme) });
+  return normalizeMeme(updated);
+}
+
+// 밈 삭제(관리자 전용) — 랭킹/인증마크/스크랩/최근 본 기록도 같이 지워짐.
+export function deleteMeme(id) {
+  return request(`/memes/${id}`, { method: "DELETE" });
+}
+
 // 인증마크 갱신(에디터 전용) — 호출마다 changeLog에 이력이 쌓임.
 export function updateVerification(memeId, { verified, sources, copyrightHolder, note }) {
   return request(`/memes/${memeId}/verification`, {
