@@ -1,6 +1,6 @@
 // 백엔드(server/) API 호출용 얇은 fetch 래퍼.
 // 인증은 httpOnly 쿠키 기반이라 매 요청에 credentials: "include"가 꼭 필요함 (docs/BACKEND.md 참고).
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -52,21 +52,6 @@ export async function me() {
   } catch {
     return null;
   }
-}
-
-export function completeProfile({ username, realName, birthDate, phone, email }) {
-  return request("/auth/complete-profile", {
-    method: "POST",
-    body: JSON.stringify({ username, realName, birthDate, phone, email }),
-  });
-}
-
-export function verifyEmail(token) {
-  return request("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) });
-}
-
-export function resendVerificationEmail() {
-  return request("/auth/resend-verification", { method: "POST" });
 }
 
 // 서버의 Meme 모델(popularity가 buzz/search/usage/trend로 평탄화, rank가 MemeRank[] 배열)을

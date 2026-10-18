@@ -3,7 +3,6 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.js";
-import oauthRoutes from "./routes/oauth.js";
 import memeRoutes from "./routes/memes.js";
 import scrapRoutes from "./routes/scraps.js";
 import submissionRoutes from "./routes/submissions.js";
@@ -34,7 +33,6 @@ app.use(cookieParser());
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRoutes);
-app.use("/auth", oauthRoutes);
 app.use("/memes", memeRoutes);
 app.use("/scraps", scrapRoutes);
 app.use("/submissions", submissionRoutes);

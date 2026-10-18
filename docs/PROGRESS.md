@@ -1,6 +1,6 @@
 # 진행 상황
 
-마지막 업데이트: 2026-09-14
+마지막 업데이트: 2026-10-18
 
 ## 완료된 것
 - 기본 뷰 구현: 홈, 검색 결과, 밈 상세, 트렌드(기간별 랭킹), 밈 사전(정렬/필터), 역사(연도별 아카이브), 로그인/회원가입(Mock), 마이페이지, 스크랩 목록(독립 화면)
@@ -60,19 +60,24 @@
 - Render의 `CLIENT_ORIGIN`을 Vercel URL로 갱신 → 자동 재배포 성공 확인(로그 확인: `prisma generate` postinstall 정상 실행, `npm start`로 서비스 기동).
 - **end-to-end 최종 확인 완료** — 실제 Vercel URL에서 로그인 세션 유지(admin 계정으로 로그인된 상태 확인), 밈 사전 페이지 실제 DB 데이터 정상 로드(CORS 정상), 밈 상세 페이지 진입 후 새로고침해도 404 없이 정상 로드(URL 라우팅 확인), 스크랩 추가/조회 정상 동작까지 사용자가 직접 브라우저로 확인. **배포 완전히 끝남.**
 - **배포 후 코드 리뷰로 보안 취약점 발견 및 수정** — 로그인/회원가입에 rate limit이 전혀 없어서(실명/생년월일/휴대전화까지 수집하는 앱이 무제한 로그인 시도에 노출된 상태) `express-rate-limit`으로 IP당 15분/10회 제한 추가, Render 프록시 뒤에서 실제 클라이언트 IP를 보려고 `trust proxy` 설정도 같이 켬. 로컬 curl로 `RateLimit-Remaining` 헤더 감소하는 것까지 확인.
-- **이메일 인증 추가.** 회원가입 시 24시간 유효 토큰 발급 + Resend HTTPS API로 인증 메일 발송(SMTP 대신 443 포트만 씀 — 이 네트워크 제약과 같은 이유). `POST /auth/verify-email`·`POST /auth/resend-verification` 신규, 이메일 변경 시 재인증 필요하도록 `emailVerified` 초기화. 프론트에 인증 링크 처리 화면([VerifyEmailView](../src/pages/VerifyEmailView.jsx))과 마이페이지 인증 배지/재발송 버튼 추가. 로컬에서 가입→DB에서 토큰 조회→인증→`/auth/me` 반영 확인, 잘못된 토큰 거부까지 전부 curl로 검증(테스트 계정은 정리함).
-- **카카오/구글 소셜 로그인 추가.** 처음엔 "연동 전용"(정식 가입한 계정에 미리 연동해둔 경우에만 로그인 수단으로 동작, 소셜만으로는 신규 가입 불가)으로 설계했는데, 같은 세션 안에서 사용자가 "그냥 가입할 때부터 카카오/구글 쓸 수 있게 하자"로 방향을 바꿔서 다시 구현함. 최종 동작: 로그인된 상태에서 소셜 버튼 → "연동"(기존과 동일), 비로그인 상태 → 연동된 계정 있으면 로그인, **없으면 바로 새 계정 생성.** 카카오/구글 프로필엔 정식 가입 폼이 받는 아이디/실명/생년월일/휴대전화가 없어서 `User`의 이 필드들(+email/passwordHash)을 nullable로 바꾸고, 소셜 가입 직후엔 닉네임만 채운 채로 로그인시킨 뒤 온보딩 화면(`POST /auth/complete-profile`, [CompleteProfileView](../src/pages/CompleteProfileView.jsx))에서 나머지를 한 번에 받도록 함 — `App.jsx`가 프로필 미완성 유저는 다른 화면 대신 이 온보딩만 보이게 강제. 구글은 이메일을 바로 주니 가입 즉시 인증 메일 발송, 이미 그 이메일로 가입된 계정 있으면 중복 생성 대신 로그인 페이지로 안내. 카카오는 여전히 이메일 동의 없이 고유 회원번호만으로 처리(`account_email`은 비즈니스 인증 필요해서 스킵). 카카오 디벨로퍼스/Google Cloud Console 앱 등록은 사용자가 화면 보면서 직접 진행, 콜백 리다이렉트 URI까지 등록 완료.
-- 로컬에서 온보딩 흐름 curl로 검증(더미 소셜 계정 생성 → 토큰 서명 → complete-profile 호출 → `profileComplete: true` 반영 확인 → 재호출 시 400 거부 확인, 테스트 계정 정리함). `/auth/kakao`·`/auth/google`이 올바른 authorize URL로 리다이렉트하는 것도 curl로 확인 — **실제 카카오/구글 동의 화면까지 거치는 전체 흐름은 브라우저에서 아직 최종 확인 전.**
 - 위 전부 build/lint 클린, 커밋+push 완료.
-- **아직 안 한 것**: Render(운영) Environment에 `RESEND_API_KEY`/`RESEND_FROM_EMAIL`/`SERVER_ORIGIN`/`KAKAO_REST_API_KEY`/`KAKAO_CLIENT_SECRET`/`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` 추가 필요(로컬 `.env`에만 넣어둔 상태) — 추가 안 하면 운영 서버에서 이메일 인증/소셜 로그인 안 됨(`SERVER_ORIGIN` 빠져서 redirect_uri가 localhost로 나오는 것까지 실제로 확인함). 추가 후 실제 Vercel URL에서 카카오/구글로 새 계정 생성 → 온보딩 → 로그아웃 → 재로그인까지 브라우저로 최종 확인 필요. 이메일 인증도 Resend 샌드박스 제한(도메인 미인증 시 계정 이메일로만 수신) 때문에 실제 수신 여부 재확인 필요.
+- 기존 테스트 계정 6개는 admin만 남기고 전부 삭제함(2026-09-15) — 연결된 제보(Submission) 2건도 같이 지워야 삭제가 됐음(FK 제약).
+
+## 2026-10-18
+- 회원가입/로그인은 아이디+비밀번호 일반 폼 하나로만 유지하기로 결정 — 그 외 가입/인증 관련 부가 기능은 코드·스키마·문서에서 전부 제거함.
 
 ## 진행 중 / 다음에 할 일
 
-### 지금 당장 안 되는 것 (2026-09-15, 다음 세션 최우선)
-- **이메일 인증** — 메일이 실제로 안 옴. Resend 샌드박스 제한(도메인 미인증 시 Resend 가입 계정 본인 이메일로만 수신됨) + Render Environment에 `RESEND_API_KEY` 등이 제대로 들어갔는지 재확인 필요.
-- **카카오 로그인 / 구글 로그인 둘 다 안 됨** — Render Environment에 `SERVER_ORIGIN`이 빠져있어서 OAuth redirect_uri가 배포 주소가 아니라 `localhost:4000`으로 나가는 것까지 확인함(2026-09-14). `SERVER_ORIGIN=https://trend-book.onrender.com`과 `KAKAO_REST_API_KEY`/`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`이 실제로 저장됐는지 다시 확인할 것.
-- **로컬에 커밋 안 된 작업 있음** — "이메일 인증을 해야 로그인되게" 요청에 따라 `server/src/routes/auth.js`(회원가입 시 자동 로그인 제거 + `emailVerified`false면 로그인 거부 + 로그인 전 재발송용 `POST /auth/resend-verification-by-username` 추가)는 다 만들어서 curl로 끝까지 검증까지 마쳤는데, 프론트(`src/pages/AuthView.jsx`, `src/lib/api.js`)는 그에 맞춰 화면을 아직 못 고침 — **이 상태로 커밋/배포하면 회원가입 화면이 깨짐(서버가 더 이상 가입 즉시 로그인 응답을 안 주는데 프론트는 여전히 그걸 기대함)**. 그래서 일부러 커밋 안 하고 로컬에만 남겨둠. 다음 세션에서 AuthView.jsx 마무리(가입 성공 시 "메일함 확인해줘" 화면 + 재발송 버튼, 로그인이 "이메일 미인증"으로 막히면 재발송 버튼 보여주기)부터 이어갈 것.
-- 기존 테스트 계정 6개는 admin만 남기고 전부 삭제함(2026-09-15) — 연결된 제보(Submission) 2건도 같이 지워야 삭제가 됐음(FK 제약). 문제 되는 부분 아님, 정리 목적.
+### 다음 세션 최우선
+- **라이브 DB(Neon) 정리 SQL 한 번 실행** — 코드/스키마에서 지운 `users` 컬럼이 DB엔 아직 남아있음(앱 동작엔 지장 없음). 아래 SQL을 임시 파일로 저장해 `node prisma/apply-migration.js <파일>`로 실행하고, 실행 후 이 항목은 지울 것. `SET NOT NULL`은 해당 컬럼이 null인 행이 있으면 실패함(admin 계정만 남아있어서 문제 없을 것).
+  ```sql
+  DROP INDEX IF EXISTS "users_emailVerificationToken_key";
+  DROP INDEX IF EXISTS "users_kakaoId_key";
+  DROP INDEX IF EXISTS "users_googleId_key";
+  ALTER TABLE "users" DROP COLUMN IF EXISTS "emailVerified", DROP COLUMN IF EXISTS "emailVerificationToken", DROP COLUMN IF EXISTS "emailVerificationExpiresAt", DROP COLUMN IF EXISTS "kakaoId", DROP COLUMN IF EXISTS "googleId";
+  ALTER TABLE "users" ALTER COLUMN "email" SET NOT NULL, ALTER COLUMN "username" SET NOT NULL, ALTER COLUMN "realName" SET NOT NULL, ALTER COLUMN "birthDate" SET NOT NULL, ALTER COLUMN "phone" SET NOT NULL, ALTER COLUMN "passwordHash" SET NOT NULL;
+  ```
+- Render Environment 탭에 넣어둔 관련 키(`SERVER_ORIGIN`, `RESEND_*`, `KAKAO_*`, `GOOGLE_*`)가 있으면 삭제. 카카오 디벨로퍼스/Google Cloud Console/Resend에 만들어둔 앱·키도 필요 없으면 삭제.
 
 ### 완료된 6개 기능
 **사용자 확정: 아래 6개 기능 전부 구현(AI 기반 외부 데이터 수집만 제외).** 설계 검토에서 나온 권장 순서:
