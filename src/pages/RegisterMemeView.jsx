@@ -191,9 +191,16 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill, 
           <button onClick={() => setView({ name: "detail", id: done.id })} className="btn-primary">
             등록된 밈 보기
           </button>
-          <button onClick={() => setView({ name: "submissionQueue" })} className="btn-secondary">
-            제보 큐로 돌아가기
-          </button>
+          {prefill?.submissionId ? (
+            <button onClick={() => setView({ name: "submissionQueue" })} className="btn-secondary">
+              제보 큐로 돌아가기
+            </button>
+          ) : (
+            // 같은 view로 다시 가면 App의 key가 안 바뀌어 폼이 리셋되지 않아서, 매번 다른 ts를 실어 강제로 새로 마운트시킴.
+            <button onClick={() => setView({ name: "registerMeme", ts: Date.now() })} className="btn-secondary">
+              하나 더 등록
+            </button>
+          )}
         </div>
       </div>
     );
@@ -203,7 +210,11 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill, 
     <div className="max-w-2xl mx-auto px-5 py-10">
       <h1 className="font-serif-kr text-3xl mb-1">{editing ? "밈 수정" : "밈 등록"}</h1>
       <p className="text-sm text-neutral-400 mb-8">
-        {editing ? `"${editing.name}"의 내용을 고쳐서 저장해.` : "승인된 제보를 실제 밈 콘텐츠로 검수해서 등록해."}
+        {editing
+          ? `"${editing.name}"의 내용을 고쳐서 저장해.`
+          : prefill
+            ? "승인된 제보를 실제 밈 콘텐츠로 검수해서 등록해."
+            : "밈을 직접 등록해. 과거 밈이면 아래 \"기록과 근거\"까지 채워줘."}
       </p>
 
       {prefill?.sourceUrl && (

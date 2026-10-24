@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, FileText, Heart, Inbox, LogOut, Megaphone, Search, Settings, ShieldCheck, UserRound } from "lucide-react";
+import { ChevronDown, FileText, Heart, Inbox, LogOut, Megaphone, PlusCircle, Search, Settings, ShieldCheck, UserRound } from "lucide-react";
 import { Logo } from "./Logo";
 import { SearchBar } from "./SearchBar";
 
@@ -73,6 +73,15 @@ function UserMenu({ user, setView, onLogout }) {
               className="w-full text-left px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
             >
               <Inbox size={15} className="text-neutral-400" /> 제보 승인
+            </button>
+          )}
+          {(user.role === "editor" || user.role === "admin") && (
+            // 제보 없이 바로 등록하는 진입점. 과거 밈을 에디터가 직접 많이 넣어야 해서(아카이브) 제보 큐를 거치지 않는 길을 열어둠.
+            <button
+              onMouseDown={() => setView({ name: "registerMeme" })}
+              className="w-full text-left px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+            >
+              <PlusCircle size={15} className="text-neutral-400" /> 밈 등록
             </button>
           )}
           {user.role === "admin" && (
