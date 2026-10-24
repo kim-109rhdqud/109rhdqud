@@ -44,7 +44,7 @@ export default function App() {
       ) : (
         // view가 바뀔 때마다 key도 바뀌어서 매번 새로 마운트되고, 그때 page-transition 애니메이션이 자동으로 재생됨.
         // 화면이 뚝뚝 끊기듯 바뀌는 느낌을 없애려는 용도(그냥 CSS 애니메이션이라 라이브러리 없이 처리).
-        <div key={`${view.name}:${view.id ?? ""}:${view.query ?? ""}`} className="page-transition">
+        <div key={`${view.name}:${view.id ?? ""}:${view.query ?? ""}:${view.ts ?? ""}`} className="page-transition">
           {view.name === "home" && <HomeView setView={setView} memes={memes} />}
           {view.name === "search" && <SearchResultsView query={view.query} setView={setView} memes={memes} />}
           {view.name === "detail" && (
