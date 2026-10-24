@@ -1,10 +1,38 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { requireAdmin, requireAuth, requireEditor } from "../middleware/auth.js";
 
 const router = Router();
 
 const ID_PATTERN = /^[a-z0-9-]+$/;
+// 아카이브 기록 날짜: 2000년대 밈은 연/월 단위로만 확실한 경우가 많아서 "2007" / "2007.03" / "2007.03.12" 전부 허용.
+const RECORD_DATE_PATTERN = /^\d{4}(\.(0[1-9]|1[0-2])(\.(0[1-9]|[12]\d|3[01]))?)?$/;
+const GRADES = ["A", "B", "C"];
+
+function isHttpUrl(u) {
+  try {
+    const { protocol } = new URL(u);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// { date, source|evidence, url? } 모양의 기록 블록 검증. 비어 있으면(null/undefined) 통과 — 전부 선택 항목이라서.
+// 성공 시 { value }, 실패 시 { error }.
+function parseRecord(raw, textKey, label) {
+  if (raw == null) return { value: null };
+  if (typeof raw !== "object" || Array.isArray(raw)) return { error: `${label} 형식이 잘못됐어` };
+  const date = String(raw.date ?? "").trim();
+  const text = String(raw[textKey] ?? "").trim();
+  const url = raw.url ? String(raw.url).trim() : "";
+  if (!date && !text && !url) return { value: null };
+  if (!RECORD_DATE_PATTERN.test(date)) return { error: `${label} 날짜는 2007 / 2007.03 / 2007.03.12 형식이어야 해` };
+  if (!text) return { error: `${label}의 ${textKey === "source" ? "출처" : "근거"}를 적어줘` };
+  if (url && !isHttpUrl(url)) return { error: `${label} 링크는 http(s) 주소여야 해` };
+  return { value: { date, [textKey]: text, ...(url ? { url } : {}) } };
+}
 
 // 등록(POST)과 수정(PATCH)이 같은 필드·검증 규칙을 쓰므로 한 군데서 처리.
 // 실패하면 { error }, 성공하면 DB에 그대로 넣을 { data }를 돌려줌. id는 여기서 안 다룸(수정 불가).
@@ -29,6 +57,12 @@ function memeDataFromBody(body) {
     relatedVideos,
     relatedPeople,
     relatedMemeIds,
+    grade,
+    firstRecord,
+    peak,
+    spreadPath,
+    sourceLinks,
+    unverified,
   } = body;
 
   if (
@@ -49,6 +83,25 @@ function memeDataFromBody(body) {
     trend.length < 2
   ) {
     return { error: "필수 항목이 비어 있어(카테고리/플랫폼/키워드는 1개 이상, 유행 추이는 2개 이상 필요)" };
+  }
+
+  // 아카이브 기록·근거 — 전부 선택이지만 값이 있으면 모양은 맞아야 함.
+  if (grade != null && grade !== "" && !GRADES.includes(grade)) {
+    return { error: "등급은 A / B / C 중 하나여야 해" };
+  }
+  const first = parseRecord(firstRecord, "source", "최초 확인 기록");
+  if (first.error) return { error: first.error };
+  const peakRec = parseRecord(peak, "evidence", "정점 시기");
+  if (peakRec.error) return { error: peakRec.error };
+  const cleanSpread = (Array.isArray(spreadPath) ? spreadPath : []).map((s) => String(s).trim()).filter(Boolean);
+  const cleanUnverified = (Array.isArray(unverified) ? unverified : []).map((s) => String(s).trim()).filter(Boolean);
+  const cleanLinks = [];
+  for (const l of Array.isArray(sourceLinks) ? sourceLinks : []) {
+    const title = String(l?.title ?? "").trim();
+    const url = String(l?.url ?? "").trim();
+    if (!title && !url) continue;
+    if (!title || !isHttpUrl(url)) return { error: "원본 소재 링크는 제목과 http(s) 주소가 둘 다 필요해" };
+    cleanLinks.push({ title, url });
   }
 
   return {
@@ -72,6 +125,13 @@ function memeDataFromBody(body) {
       relatedVideos: relatedVideos ?? [],
       relatedPeople: relatedPeople ?? [],
       relatedMemeIds: relatedMemeIds ?? [],
+      grade: grade || null,
+      // Prisma는 nullable Json 컬럼에 JS null을 못 넣게 해서(DbNull/JsonNull 구분) 명시적으로 DbNull로 바꿈.
+      firstRecord: first.value ?? Prisma.DbNull,
+      peak: peakRec.value ?? Prisma.DbNull,
+      spreadPath: cleanSpread,
+      sourceLinks: cleanLinks,
+      unverified: cleanUnverified,
     },
   };
 }

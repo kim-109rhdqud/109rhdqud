@@ -7,8 +7,15 @@ export function DictionaryView({ setView, memes }) {
   const [sort, setSort] = useState("popular");
   const [cat, setCat] = useState("전체");
   const [q, setQ] = useState("");
+  // 아카이브 등급 필터 — "전체" 외에 "미분류"(아직 등급 없음)도 골라볼 수 있게.
+  const [grade, setGrade] = useState("전체");
 
-  let list = memes.filter((m) => (cat === "전체" || m.categories.includes(cat)) && m.name.includes(q.trim()));
+  let list = memes.filter(
+    (m) =>
+      (cat === "전체" || m.categories.includes(cat)) &&
+      (grade === "전체" || (grade === "미분류" ? !m.grade : m.grade === grade)) &&
+      m.name.includes(q.trim()),
+  );
   if (sort === "popular") list = [...list].sort((a, b) => b.popularity.buzz - a.popularity.buzz);
   if (sort === "recent") list = [...list].sort((a, b) => (a.rank.daily.r ?? 999) - (b.rank.daily.r ?? 999));
   if (sort === "alpha") list = [...list].sort((a, b) => a.name.localeCompare(b.name, "ko"));
@@ -18,6 +25,14 @@ export function DictionaryView({ setView, memes }) {
     key: c,
     label: c,
   }));
+
+  const gradeOptions = [
+    { key: "전체", label: "등급 전체" },
+    { key: "A", label: "A 대중 유행" },
+    { key: "B", label: "B 온라인 대유행" },
+    { key: "C", label: "C 커뮤니티 한정" },
+    { key: "미분류", label: "미분류" },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto px-5 py-10">
@@ -34,6 +49,9 @@ export function DictionaryView({ setView, memes }) {
           <option value="alpha">가나다순</option>
           <option value="registered">최신 등록순</option>
         </select>
+      </div>
+      <div className="mb-4">
+        <PillTabs options={gradeOptions} value={grade} onChange={setGrade} variant="outline" />
       </div>
       <input
         value={q}

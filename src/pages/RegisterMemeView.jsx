@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PlusCircle, Sparkles, Trash2 } from "lucide-react";
 import { createMeme, updateMeme } from "../lib/api";
 import { CATEGORIES } from "../data/memes";
+import { GRADES } from "../data/grades";
 
 function splitCsv(text) {
   return text
@@ -86,6 +87,21 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill, 
   const [relatedVideos, setRelatedVideos] = useState(editing?.relatedVideos ?? []);
   const [relatedPeople, setRelatedPeople] = useState(editing?.relatedPeople ?? []);
   const [relatedMemeIds, setRelatedMemeIds] = useState(editing?.relatedMemeIds ?? []);
+  // 아카이브 기록·근거(전부 선택). 날짜는 "2007" / "2007.03" / "2007.03.12" 문자열 — 2000년대 밈은 연/월만 확실한 경우가 많아서.
+  const [grade, setGrade] = useState(editing?.grade ?? "");
+  const [firstRecord, setFirstRecord] = useState({
+    date: editing?.firstRecord?.date ?? "",
+    source: editing?.firstRecord?.source ?? "",
+    url: editing?.firstRecord?.url ?? "",
+  });
+  const [peak, setPeak] = useState({
+    date: editing?.peak?.date ?? "",
+    evidence: editing?.peak?.evidence ?? "",
+    url: editing?.peak?.url ?? "",
+  });
+  const [spreadPath, setSpreadPath] = useState(editing?.spreadPath.join(", ") ?? "");
+  const [sourceLinks, setSourceLinks] = useState(editing?.sourceLinks ?? []);
+  const [unverified, setUnverified] = useState(editing?.unverified.join("\n") ?? "");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
@@ -134,6 +150,15 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill, 
       relatedVideos: relatedVideos.filter((v) => v.title && v.channel),
       relatedPeople: relatedPeople.filter((p) => p.name && p.reason && p.content),
       relatedMemeIds,
+      grade: grade || null,
+      firstRecord,
+      peak,
+      spreadPath: splitCsv(spreadPath),
+      sourceLinks: sourceLinks.filter((l) => l.title || l.url),
+      unverified: unverified
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
     };
 
     setSubmitting(true);
@@ -342,6 +367,61 @@ export function RegisterMemeView({ user, setView, memes, refreshMemes, prefill, 
           ]}
           addLabel="인물 추가"
         />
+
+        {/* 아카이브 기록·근거 — "데이터 수집 방안" 양식. 전부 선택이라 지금 유행 중인 밈은 비워두고 등록해도 됨. */}
+        <div className="rounded-xl bg-neutral-50 ring-1 ring-neutral-200/70 p-4 space-y-4">
+          <div>
+            <span className="block text-sm font-medium text-neutral-800">기록과 근거 (선택 · 아카이브용)</span>
+            <span className="block text-xs text-neutral-400 mt-0.5">
+              과거 밈을 검증된 아카이브로 만들 때 채워. 날짜는 2007 / 2007.03 / 2007.03.12 형식.
+            </span>
+          </div>
+          <label className="block">
+            <span className="block text-xs text-neutral-400 mb-1.5">등급</span>
+            <select value={grade} onChange={(e) => setGrade(e.target.value)} className="input-field bg-white">
+              <option value="">미분류 (아직 판정 안 함)</option>
+              {Object.entries(GRADES).map(([k, g]) => (
+                <option key={k} value={k}>
+                  {g.label} — {g.desc}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div>
+            <span className="block text-xs text-neutral-400 mb-1.5">가장 이른 확인 기록</span>
+            <div className="grid sm:grid-cols-[7rem_1fr] gap-1.5">
+              <input value={firstRecord.date} onChange={(e) => setFirstRecord({ ...firstRecord, date: e.target.value })} placeholder="2007.03" className="input-field bg-white" />
+              <input value={firstRecord.source} onChange={(e) => setFirstRecord({ ...firstRecord, source: e.target.value })} placeholder="출처 (예: 국립국어원 2007 신어 보고서)" className="input-field bg-white" />
+            </div>
+            <input value={firstRecord.url} onChange={(e) => setFirstRecord({ ...firstRecord, url: e.target.value })} placeholder="출처 링크 (선택, https://...)" className="input-field bg-white mt-1.5" />
+          </div>
+          <div>
+            <span className="block text-xs text-neutral-400 mb-1.5">정점 시기</span>
+            <div className="grid sm:grid-cols-[7rem_1fr] gap-1.5">
+              <input value={peak.date} onChange={(e) => setPeak({ ...peak, date: e.target.value })} placeholder="2007.08" className="input-field bg-white" />
+              <input value={peak.evidence} onChange={(e) => setPeak({ ...peak, evidence: e.target.value })} placeholder="근거 (예: 연말 결산 기사 '올해의 유행어' 선정)" className="input-field bg-white" />
+            </div>
+            <input value={peak.url} onChange={(e) => setPeak({ ...peak, url: e.target.value })} placeholder="근거 링크 (선택, https://...)" className="input-field bg-white mt-1.5" />
+          </div>
+          <label className="block">
+            <span className="block text-xs text-neutral-400 mb-1.5">확산 경로 (콤마 구분, 순서대로)</span>
+            <input value={spreadPath} onChange={(e) => setSpreadPath(e.target.value)} placeholder="예: 디시인사이드, 다음 카페, 방송" className="input-field bg-white" />
+          </label>
+          <RowListField
+            label="원본 소재 링크 (재배포 대신 링크만)"
+            rows={sourceLinks}
+            setRows={setSourceLinks}
+            fields={[
+              { key: "title", placeholder: "제목 (예: 원본 영상)" },
+              { key: "url", placeholder: "https://..." },
+            ]}
+            addLabel="링크 추가"
+          />
+          <label className="block">
+            <span className="block text-xs text-neutral-400 mb-1.5">아직 확인하지 못한 것 (한 줄에 하나)</span>
+            <textarea value={unverified} onChange={(e) => setUnverified(e.target.value)} placeholder={"예: 최초 발화자 미확인\n예: 2005년 이전 기록 못 찾음"} rows={2} className="input-field bg-white resize-none" />
+          </label>
+        </div>
 
         {otherMemes.length > 0 && (
           <div>

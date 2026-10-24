@@ -1,6 +1,7 @@
 import { Flame } from "lucide-react";
 import { CategoryTag } from "./CategoryTag";
 import { VerificationBadge } from "./VerificationBadge";
+import { GradeBadge } from "./GradeBadge";
 
 export function MemeCard({ meme, onOpen }) {
   return (
@@ -13,6 +14,7 @@ export function MemeCard({ meme, onOpen }) {
           <CategoryTag key={c}>{c}</CategoryTag>
         ))}
         <VerificationBadge verification={meme.verification} />
+        <GradeBadge grade={meme.grade} compact />
       </div>
       <h3 className="font-serif-kr text-lg mb-1 text-neutral-900 group-hover:brand-gradient-text transition-all">
         {meme.name}
