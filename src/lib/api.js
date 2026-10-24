@@ -62,6 +62,13 @@ function normalizeMeme(m) {
     ...m,
     popularity: { buzz: m.buzz, search: m.search, usage: m.usage, trend: m.trend },
     rank: Object.fromEntries((m.ranks ?? []).map((r) => [r.period, { r: r.rank, ch: r.change, isNew: r.isNew }])),
+    // 아카이브 기록 필드(2026-10-24) — 서버가 nullable/기본값으로 주지만, 화면 쪽에서 매번 ?? 안 쓰게 여기서 모양을 고정.
+    grade: m.grade ?? null,
+    firstRecord: m.firstRecord ?? null,
+    peak: m.peak ?? null,
+    spreadPath: m.spreadPath ?? [],
+    sourceLinks: m.sourceLinks ?? [],
+    unverified: m.unverified ?? [],
     verification: m.verification
       ? { ...m.verification, reviewedAt: m.verification.reviewedAt?.slice(0, 10) ?? null }
       : { verified: false, sources: [], changeLog: [] },

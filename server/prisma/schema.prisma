@@ -23,6 +23,14 @@ enum Period {
   yearly
 }
 
+// 아카이브 등급(2026-10-24, "데이터 수집 방안" 노션 피드백 기준). 인증마크("근거가 확인됐나")와는 다른 축으로,
+// "얼마나 널리 퍼졌나"를 말함. 지금 유행 중인 밈은 판정이 이르므로 nullable — 에디터가 나중에 채움.
+enum MemeGrade {
+  A // 대중 유행: 당시 뉴스·방송에서 유행어/현상으로 보도됐고 시기를 특정할 수 있음
+  B // 온라인 대유행: 독립 커뮤니티 2곳 이상에서 쓰인 기록이 있지만 언론 보도는 약함
+  C // 커뮤니티 한정: 특정 커뮤니티 안에서만 쓰인 기록
+}
+
 enum SubmissionStatus {
   pending
   approved
@@ -76,6 +84,15 @@ model Meme {
   relatedVideos  Json // [{ title, channel }]
   relatedPeople  Json // [{ name, reason, content }]
   relatedMemeIds String[]
+
+  // 아카이브 기록·근거(2026-10-24 추가). 전부 선택 — 과거 밈을 "검증된 아카이브"로 만들 때 채움.
+  // 날짜는 2000년대 밈이 연/월 단위로만 확실한 경우가 많아서 DateTime이 아니라 "2007" / "2007.03" / "2007.03.12" 문자열.
+  grade       MemeGrade?
+  firstRecord Json? // { date, source, url? } — 가장 이른 확인 기록
+  peak        Json? // { date, evidence, url? } — 정점 시기와 그 근거
+  spreadPath  String[] @default([]) // 확산 경로, 순서대로 (예: ["디시인사이드", "다음 카페", "방송"])
+  sourceLinks Json     @default("[]") // [{ title, url }] — 원본 소재(영상·효과음·짤) 링크, 재배포 대신 링크만
+  unverified  String[] @default([]) // 조사했지만 확인 못 한 것 — 숨기지 않고 상세 페이지에 그대로 노출
 
   verification Verification?
   ranks        MemeRank[]

@@ -7,6 +7,8 @@ import { Sparkline } from "../components/Sparkline";
 import { SectionHeading } from "../components/SectionHeading";
 import { VerificationBadge, VerificationSection } from "../components/VerificationBadge";
 import { VerificationEditForm } from "../components/VerificationEditForm";
+import { GradeBadge } from "../components/GradeBadge";
+import { RecordSection } from "../components/RecordSection";
 import { CATEGORIES } from "../data/memes";
 import { deleteMeme } from "../lib/api";
 
@@ -47,6 +49,7 @@ export function DetailView({ id, setView, user, scraps, toggleScrap, memeById, r
           <CategoryTag key={c}>{c}</CategoryTag>
         ))}
         <VerificationBadge verification={meme.verification} />
+        <GradeBadge grade={meme.grade} />
       </div>
       <div className="flex items-start justify-between gap-4 mb-2">
         <h1 className="font-serif-kr text-3xl md:text-4xl">{meme.name}</h1>
@@ -115,6 +118,9 @@ export function DetailView({ id, setView, user, scraps, toggleScrap, memeById, r
           <p className="text-sm relative opacity-95">{meme.oneLineSummary}</p>
         </div>
       </div>
+
+      {/* 기록과 근거(아카이브 등급·최초 기록·정점·확산 경로·원본 소재·미확인) */}
+      <RecordSection meme={meme} />
 
       {/* 에디터 인증 */}
       <VerificationSection verification={meme.verification} />
